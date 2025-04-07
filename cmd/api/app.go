@@ -1,6 +1,7 @@
 package api
 
 import (
+	routes "github.com/crane-cloud/mira-new/cmd/api/routes"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -31,6 +32,8 @@ func StartServer(port string) {
 		}
 		return c.JSON(body)
 	})
+
+	routes.ImageRoutes(app)
 
 	app.Listen(":" + port)
 }
