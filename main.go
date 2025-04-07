@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	cli "github.com/crane-cloud/mira-new/cmd/cli"
 )
 
 func main() {
-	fmt.Println("Hello, World!")
+	cli.Version = "0.1.0"
+	cli.Execute()
 }
