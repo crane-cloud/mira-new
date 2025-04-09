@@ -50,7 +50,7 @@ func Listen() {
 		Reconcile: Reconcile,
 	}
 
-	driverManager := runtime.NewDriverManager(driver, []string{"docker-build-complete"})
+	driverManager := runtime.NewDriverManager(driver, []string{"*"})
 
 	err := driverManager.Run()
 	if err != nil {
