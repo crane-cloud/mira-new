@@ -1,6 +1,7 @@
 package api
 
 import (
+	"conveyor.cloud.cranom.tech/pkg/client"
 	routes "github.com/crane-cloud/mira-new/cmd/api/routes"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
@@ -8,6 +9,12 @@ import (
 )
 
 func StartServer(port string) {
+	// Initialize the client
+	cl := client.NewClient()
+	if cl == nil {
+		panic("Failed to create client")
+	}
+
 	app := fiber.New(fiber.Config{
 		AppName:     "MIRA API Server",
 		JSONEncoder: json.Marshal,
@@ -33,7 +40,7 @@ func StartServer(port string) {
 		return c.JSON(body)
 	})
 
-	routes.ImageRoutes(app)
+	routes.ImageRoutes(app, cl)
 
 	app.Listen(":" + port)
 }
