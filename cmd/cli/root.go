@@ -17,7 +17,7 @@ var rootCmd = &cobra.Command{
 	`,
 	Version: Version,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Welcome to Mira Engine")
+		fmt.Println("Welcome to Mira")
 		fmt.Println("Use mira --help to see available commands")
 	},
 }
@@ -34,5 +34,6 @@ func Execute() {
 func init() {
 
 	rootCmd.AddCommand(APIServerCmd)
+	rootCmd.AddCommand(ImageBuilderCmd)
 	// Here you will define your flags and configuration settings.
 }

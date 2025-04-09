@@ -2,6 +2,7 @@ package cli
 
 import (
 	apiServer "github.com/crane-cloud/mira-new/cmd/api"
+	imageBuilder "github.com/crane-cloud/mira-new/cmd/image-builder"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,16 @@ var APIServerCmd = &cobra.Command{
 			port = "3000"
 		}
 		apiServer.StartServer(port)
+	},
+}
+
+var ImageBuilderCmd = &cobra.Command{
+	Use:   "image-builder",
+	Short: "Start the MIRA Image Builder",
+	Long: `Start the MIRA Image Builder.
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		imageBuilder.Listen()
 	},
 }
 
