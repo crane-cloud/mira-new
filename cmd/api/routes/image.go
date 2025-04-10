@@ -1,9 +1,9 @@
 package routes
 
 import (
-	"conveyor.cloud.cranom.tech/pkg/client"
 	handlers "github.com/crane-cloud/mira-new/cmd/api/handlers"
 	"github.com/gofiber/fiber/v2"
+	"github.com/open-ug/conveyor/pkg/client"
 )
 
 func ImageRoutes(app *fiber.App, cl *client.Client) {

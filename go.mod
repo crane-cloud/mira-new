@@ -3,11 +3,11 @@ module github.com/crane-cloud/mira-new
 go 1.23.5
 
 require (
-	conveyor.cloud.cranom.tech v0.1.4
 	github.com/buildpacks/pack v0.36.4
 	github.com/go-git/go-git/v5 v5.13.1
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/open-ug/conveyor v0.1.5
 	github.com/spf13/cobra v1.9.1
 )
 

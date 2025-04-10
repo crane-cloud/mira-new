@@ -3,10 +3,10 @@ package handlers
 import (
 	"context"
 
-	"conveyor.cloud.cranom.tech/pkg/client"
-	cTypes "conveyor.cloud.cranom.tech/pkg/types"
 	types "github.com/crane-cloud/mira-new/cmd/api/types"
 	"github.com/gofiber/fiber/v2"
+	"github.com/open-ug/conveyor/pkg/client"
+	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 type ImageHandler struct {

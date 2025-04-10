@@ -1,11 +1,11 @@
 package api
 
 import (
-	"conveyor.cloud.cranom.tech/pkg/client"
 	routes "github.com/crane-cloud/mira-new/cmd/api/routes"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/open-ug/conveyor/pkg/client"
 )
 
 func StartServer(port string) {

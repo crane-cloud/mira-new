@@ -3,9 +3,9 @@ package imagebuilder
 import (
 	"fmt"
 
-	cTypes "conveyor.cloud.cranom.tech/pkg/types"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // CloneGitRepo clones a git repository

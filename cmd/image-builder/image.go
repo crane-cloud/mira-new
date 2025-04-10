@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	cTypes "conveyor.cloud.cranom.tech/pkg/types"
 	"github.com/buildpacks/pack/pkg/client"
+	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // CreateBuildpacksImage creates a buildpacks image

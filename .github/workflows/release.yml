@@ -27,7 +27,7 @@ jobs:
       - name: Build binary
         run: |
           go env -w GOPROXY="https://go.sdk.cranom.tech,direct"
-          go env -w GOPRIVATE="conveyor.cloud.cranom.tech,github.com/cranom/*"
+          go env -w GOPRIVATE="github.com/open-ug/conveyor,github.com/cranom/*"
           mkdir -p output
           go build -o output/mira-${{ github.event.release.tag_name }}-${{ matrix.os }}-${{ runner.arch }}${{ matrix.ext }}
 
