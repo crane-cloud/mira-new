@@ -7,7 +7,7 @@ require (
 	github.com/go-git/go-git/v5 v5.13.1
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v2 v2.52.6
-	github.com/open-ug/conveyor v0.1.5
+	github.com/open-ug/conveyor v0.1.6
 	github.com/spf13/cobra v1.9.1
 )
 

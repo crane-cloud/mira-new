@@ -6,11 +6,12 @@ import (
 	"log"
 
 	runtime "github.com/open-ug/conveyor/pkg/driver-runtime"
+	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // Listen for messages from the runtime
-func Reconcile(payload string, event string) error {
+func Reconcile(payload string, event string, driverName string, logger *dLogger.DriverLogger) error {
 
 	log.SetFlags(log.Ldate | log.Ltime)
 	log.Printf("Image Driver Reconciling: %v", payload)
@@ -26,7 +27,7 @@ func Reconcile(payload string, event string) error {
 			app := appMsg.Payload
 
 			if app.Spec.Source.Type == "git" {
-				err := CreateBuildpacksImage(&app)
+				err := CreateBuildpacksImage(&app, logger)
 				if err != nil {
 					return fmt.Errorf("error creating buildpacks image: %v", err)
 				}
@@ -48,11 +49,16 @@ func Reconcile(payload string, event string) error {
 func Listen() {
 	driver := &runtime.Driver{
 		Reconcile: Reconcile,
+		Name:      "mira",
 	}
 
-	driverManager := runtime.NewDriverManager(driver, []string{"*"})
+	driverManager, err := runtime.NewDriverManager(driver, []string{"*"})
+	if err != nil {
+		fmt.Println("Error creating driver manager: ", err)
+		return
+	}
 
-	err := driverManager.Run()
+	err = driverManager.Run()
 	if err != nil {
 		fmt.Println("Error running driver manager: ", err)
 	}

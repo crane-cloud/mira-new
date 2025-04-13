@@ -1,16 +1,19 @@
 package imagebuilder
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/buildpacks/pack/pkg/client"
+	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // CreateBuildpacksImage creates a buildpacks image
-func CreateBuildpacksImage(app *cTypes.Application) error {
+func CreateBuildpacksImage(app *cTypes.Application, logger *dLogger.DriverLogger) error {
 	// clone Source code
 	fmt.Println("cloning repo")
 	err := CloneGitRepo(app)
@@ -21,7 +24,15 @@ func CreateBuildpacksImage(app *cTypes.Application) error {
 	}
 	fmt.Println("building image")
 
-	err = BuildImage(app)
+	captureAndStreamLogs(
+		func() {
+			err = BuildImage(app)
+		},
+		func(line string) {
+			logger.Log(map[string]string{
+				"event": "buildpack",
+			}, line)
+		})
 
 	if err != nil {
 		log.Fatalf("failed to create pack client: %v", err)
@@ -51,4 +62,28 @@ func BuildImage(app *cTypes.Application) error {
 	}
 
 	return nil
+}
+
+func captureAndStreamLogs(f func(), streamFn func(string)) {
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Start a goroutine to read and stream each line
+	done := make(chan struct{})
+	go func() {
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			line := scanner.Text()
+			streamFn(line)
+		}
+		close(done)
+	}()
+
+	f()
+
+	// Close writer and restore stdout
+	w.Close()
+	os.Stdout = origStdout
+	<-done
 }
