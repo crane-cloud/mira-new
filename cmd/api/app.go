@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+
 	routes "github.com/crane-cloud/mira-new/cmd/api/routes"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
@@ -43,4 +45,5 @@ func StartServer(port string) {
 	routes.ImageRoutes(app, cl)
 
 	app.Listen(":" + port)
+	fmt.Println("Server started on port:", port)
 }

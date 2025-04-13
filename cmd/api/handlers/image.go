@@ -39,7 +39,7 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 		app.Spec.Source.GitRepo.URL = payload.SourceURL
 	}
 
-	_, err := h.client.CreateApplication(context.Background(), &app)
+	resp, err := h.client.CreateApplication(context.Background(), &app)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create application",
@@ -49,9 +49,9 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Image generation started",
 		"data": fiber.Map{
-			"name":        payload.Name,
-			"source_type": payload.SourceType,
-			"source_url":  payload.SourceURL,
+			"name":       resp.Name,
+			"runid":      resp.RunID,
+			"wshostpath": h.client.GetAPIURL() + "/drivers/streams/logs/mira/" + resp.RunID,
 		},
 	})
 

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	apiServer "github.com/crane-cloud/mira-new/cmd/api"
 	imageBuilder "github.com/crane-cloud/mira-new/cmd/image-builder"
 	"github.com/spf13/cobra"
@@ -16,7 +18,9 @@ var APIServerCmd = &cobra.Command{
 		if port == "" {
 			port = "3000"
 		}
+		fmt.Println("Starting MIRA API Server on port:", port)
 		apiServer.StartServer(port)
+		fmt.Println("MIRA API Server started successfully.")
 	},
 }
 
