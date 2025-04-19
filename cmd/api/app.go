@@ -11,6 +11,8 @@ import (
 )
 
 func StartServer(port string) {
+	// Load environment variables from .env file
+
 	// Initialize the client
 	cl := client.NewClient()
 	if cl == nil {
