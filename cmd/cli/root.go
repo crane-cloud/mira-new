@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +33,11 @@ func Execute() {
 }
 
 func init() {
+	// load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env file")
+	}
 
 	rootCmd.AddCommand(APIServerCmd)
 	rootCmd.AddCommand(ImageBuilderCmd)

@@ -44,6 +44,8 @@ func StartServer(port string) {
 		return c.JSON(body)
 	})
 
+	app.Static("/uploads", "./uploads")
+
 	routes.ImageRoutes(app, cl)
 
 	app.Listen(":" + port)

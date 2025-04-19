@@ -26,19 +26,18 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 		if appMsg.Action == "create" {
 			app := appMsg.Payload
 
-			if app.Spec.Source.Type == "git" {
-				err := CreateBuildpacksImage(&app, logger)
-				if err != nil {
-					return fmt.Errorf("error creating buildpacks image: %v", err)
-				}
-
-				runtime.BroadCastMessage(
-					cTypes.DriverMessage{
-						Event:   "buildpack-create-complete",
-						Payload: payload,
-					},
-				)
+			err := CreateBuildpacksImage(&app, logger)
+			if err != nil {
+				return fmt.Errorf("error creating buildpacks image: %v", err)
 			}
+
+			runtime.BroadCastMessage(
+				cTypes.DriverMessage{
+					Event:   "buildpack-create-complete",
+					Payload: payload,
+				},
+			)
+
 			return nil
 		}
 	}
