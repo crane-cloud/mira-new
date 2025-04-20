@@ -1,34 +1,37 @@
 #!/bin/bash
 
-# GitHub repo and asset details
-REPO="crane-cloud/mira-new"
-ASSET_NAME="mira-ubuntu"
-INSTALL_PATH="/usr/local/bin/mira"
+set -e
 
-# Get latest release info
-echo "Fetching latest release info..."
-API_URL="https://api.github.com/repos/${REPO}/releases/latest"
-RELEASE_DATA=$(curl -s "$API_URL")
+# Function to download a specific asset from the latest GitHub release
+download_asset() {
+  local repo=$1
+  local asset_name=$2
 
-# Extract download URL
-DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep "browser_download_url" | grep "$ASSET_NAME" | cut -d '"' -f 4)
+  echo "Fetching latest release for $repo..."
+  release_url="https://api.github.com/repos/$repo/releases/latest"
+  
+  # Get download URL for the asset
+  download_url=$(curl -s "$release_url" | grep "browser_download_url" | grep "$asset_name" | cut -d '"' -f 4)
 
-# Ensure the URL was found
-if [ -z "$DOWNLOAD_URL" ]; then
-    echo "Error: Asset '$ASSET_NAME' not found in latest release."
+  if [[ -z "$download_url" ]]; then
+    echo "Error: Could not find asset $asset_name in $repo"
     exit 1
-fi
+  fi
 
-# Download to a temporary location
-TMP_FILE=$(mktemp)
-echo "Downloading $ASSET_NAME to temporary file..."
-curl -L -o "$TMP_FILE" "$DOWNLOAD_URL"
+  echo "Downloading $asset_name from $repo..."
+  curl -LO "$download_url"
 
-# Make it executable
-chmod +x "$TMP_FILE"
+  if [[ "$asset_name" == "mira-ubuntu" ]]; then
+    echo "Making mira-ubuntu executable..."
+    chmod +x mira-ubuntu
+  fi
+}
 
-# Move to /usr/local/bin as 'mira' (requires sudo)
-echo "Installing to $INSTALL_PATH..."
-sudo mv "$TMP_FILE" "$INSTALL_PATH"
+# Download compose.yml and loki.yml from open-ug/conveyor
+download_asset "open-ug/conveyor" "compose.yml"
+download_asset "open-ug/conveyor" "loki.yml"
 
-echo "Installed 'mira' to $INSTALL_PATH."
+# Download mira-ubuntu from crane-cloud/mira-new
+download_asset "crane-cloud/mira-new" "mira-ubuntu"
+
+echo "All assets downloaded successfully."

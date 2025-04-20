@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build the Go application
-FROM golang:1.21 AS builder
+FROM golang:1.23.5 AS builder
 
 # Set the working directory
 WORKDIR /app

@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: [1.21.6]
+        go-version: [1.23.5]
         include:
           - os: ubuntu-latest
             ext: ""
@@ -26,14 +26,12 @@ jobs:
 
       - name: Build binary
         run: |
-          go env -w GOPROXY="https://go.sdk.cranom.tech,direct"
-          go env -w GOPRIVATE="github.com/open-ug/conveyor,github.com/cranom/*"
           mkdir -p output
-          go build -o output/mira-${{ github.event.release.tag_name }}-${{ matrix.os }}-${{ runner.arch }}${{ matrix.ext }}
+          go build -o output/mira-${{ matrix.os }}
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2.0.8
         with:
-          files: output/mira-${{ github.event.release.tag_name }}-${{ matrix.os }}-${{ runner.arch }}${{ matrix.ext }}
+          files: output/mira-${{ matrix.os }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
