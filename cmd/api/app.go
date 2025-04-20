@@ -27,9 +27,10 @@ func StartServer(port string) {
 
 	// Enable CORS
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept",
-		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+		AllowOrigins:     "*",
+		AllowHeaders:     "Origin, Content-Type, Accept",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
+		AllowCredentials: true,
 	}))
 
 	app.Get("/api/health", func(c *fiber.Ctx) error {
@@ -47,6 +48,8 @@ func StartServer(port string) {
 	app.Static("/uploads", "./uploads")
 
 	routes.ImageRoutes(app, cl)
+	routes.GitOAuthRoutes(app)
+	routes.GitUserRoutes(app)
 
 	app.Listen(":" + port)
 	fmt.Println("Server started on port:", port)
