@@ -11,6 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/open-ug/conveyor v0.1.12
 	github.com/spf13/cobra v1.9.1
+	golang.org/x/oauth2 v0.25.0
 )
 
 require (
