@@ -21,9 +21,9 @@ download_asset() {
   echo "Downloading $asset_name from $repo..."
   curl -LO "$download_url"
 
-  if [[ "$asset_name" == "mira-ubuntu" ]]; then
+  if [[ "$asset_name" == "mira-ubuntu-latest" ]]; then
     echo "Making mira-ubuntu executable..."
-    chmod +x mira-ubuntu
+    chmod +x mira-ubuntu-latest
   fi
 }
 
@@ -32,6 +32,6 @@ download_asset "open-ug/conveyor" "compose.yml"
 download_asset "open-ug/conveyor" "loki.yml"
 
 # Download mira-ubuntu from crane-cloud/mira-new
-download_asset "crane-cloud/mira-new" "mira-ubuntu"
+download_asset "crane-cloud/mira-new" "mira-ubuntu-latest"
 
 echo "All assets downloaded successfully."
