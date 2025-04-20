@@ -1,13 +1,12 @@
 package imagebuilder
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/buildpacks/pack/pkg/client"
+	"github.com/buildpacks/pack/pkg/logging"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
@@ -31,25 +30,23 @@ func CreateBuildpacksImage(app *cTypes.Application, logger *dLogger.DriverLogger
 
 	fmt.Println("building image")
 
-	captureAndStreamLogs(
-		func() {
-			err := BuildImage(app)
-			if err != nil {
-				log.Fatalf("failed to build image: %v", err)
-			}
-			fmt.Println("Image built successfully")
-		},
-		func(line string) {
-			logger.Log(map[string]string{
-				"event": "buildpack",
-			}, line)
-		})
+	err := BuildImage(app, logger)
+	if err != nil {
+		log.Fatalf("failed to build image: %v", err)
+		return err
+	}
+	fmt.Println("Image built successfully")
 
 	return nil
 }
 
-func BuildImage(app *cTypes.Application) error {
-	cli, err := client.NewClient()
+func BuildImage(app *cTypes.Application, driverLogger *dLogger.DriverLogger) error {
+
+	logger := logging.NewLogWithWriters(driverLogger, driverLogger)
+
+	cli, err := client.NewClient(
+		client.WithLogger(logger),
+	)
 	if err != nil {
 		log.Fatalf("failed to create pack client: %v", err)
 		return err
@@ -75,28 +72,4 @@ func BuildImage(app *cTypes.Application) error {
 	}
 
 	return nil
-}
-
-func captureAndStreamLogs(f func(), streamFn func(string)) {
-	origStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Start a goroutine to read and stream each line
-	done := make(chan struct{})
-	go func() {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			line := scanner.Text()
-			streamFn(line)
-		}
-		close(done)
-	}()
-
-	f()
-
-	// Close writer and restore stdout
-	w.Close()
-	os.Stdout = origStdout
-	<-done
 }
