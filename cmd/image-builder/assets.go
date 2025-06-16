@@ -10,11 +10,11 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-resty/resty/v2"
-	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // CloneGitRepo clones a git repository
-func CloneGitRepo(app *cTypes.Application) error {
+func CloneGitRepo(app *ImageBuild) error {
+	fmt.Println("Cloning git repository")
 	_, err := git.PlainClone("/usr/local/crane/git/"+app.Name, false, &git.CloneOptions{
 		URL: app.Spec.Source.GitRepo.URL,
 		Auth: &http.BasicAuth{
@@ -31,7 +31,7 @@ func CloneGitRepo(app *cTypes.Application) error {
 }
 
 // DownloadFile downloads a zip file from a URL
-func DownloadFile(app *cTypes.Application) error {
+func DownloadFile(app *ImageBuild) error {
 	client := resty.New()
 	resp, err := client.R().
 		SetOutput("/usr/local/crane/blobs/" + app.Name + ".zip").
@@ -48,7 +48,7 @@ func DownloadFile(app *cTypes.Application) error {
 }
 
 // UnzipFile unzips a zip file
-func UnzipFile(app *cTypes.Application) error {
+func UnzipFile(app *ImageBuild) error {
 	saveto := "/usr/local/crane/zip/" + app.Name
 	zipFile := "/usr/local/crane/blobs/" + app.Name + ".zip"
 	zipReader, err := zip.OpenReader(zipFile)
@@ -87,7 +87,7 @@ func UnzipFile(app *cTypes.Application) error {
 }
 
 // HandleFileSource handles the file source type
-func HandleFileSource(app *cTypes.Application) error {
+func HandleFileSource(app *ImageBuild) error {
 
 	// Download the file
 	fmt.Println("Downloading file")

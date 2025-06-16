@@ -8,11 +8,10 @@ import (
 	"github.com/buildpacks/pack/pkg/client"
 	"github.com/buildpacks/pack/pkg/logging"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
-	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // CreateBuildpacksImage creates a buildpacks image
-func CreateBuildpacksImage(app *cTypes.Application, logger *dLogger.DriverLogger) error {
+func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error {
 
 	if app.Spec.Source.Type == "git" {
 		err := CloneGitRepo(app)
@@ -40,7 +39,7 @@ func CreateBuildpacksImage(app *cTypes.Application, logger *dLogger.DriverLogger
 	return nil
 }
 
-func BuildImage(app *cTypes.Application, driverLogger *dLogger.DriverLogger) error {
+func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 
 	logger := logging.NewLogWithWriters(driverLogger, driverLogger)
 

@@ -9,7 +9,7 @@ require (
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v2 v2.52.6
 	github.com/joho/godotenv v1.5.1
-	github.com/open-ug/conveyor v0.1.15
+	github.com/open-ug/conveyor v0.1.16
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/oauth2 v0.25.0
 )

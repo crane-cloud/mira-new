@@ -3,8 +3,9 @@ package handlers
 import (
 	"context"
 
-	//types "github.com/crane-cloud/mira-new/cmd/api/types"
 	"fmt"
+
+	types "github.com/crane-cloud/mira-new/cmd/image-builder"
 
 	utils "github.com/crane-cloud/mira-new/internals/utils"
 	"github.com/gofiber/fiber/v2"
@@ -59,7 +60,7 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 		})
 	}
 
-	var app cTypes.Application
+	var app types.ImageBuild
 	app.Name = name[0]
 
 	// get the file from the form and check if it is a valid file. then save it to the server
@@ -89,22 +90,26 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	} else if sourceType[0] == "git" {
 		// get the git fields from the form
 		repo := form.Value["repo"]
-		branch := form.Value["branch"]
-		gitUsername := form.Value["gitusername"]
-		gitPassword := form.Value["gitpassword"]
-		if len(repo) == 0 || len(branch) == 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Missing required fields",
-			})
-		}
+		//branch := form.Value["branch"]
+		//gitUsername := form.Value["gitusername"]
+		//gitPassword := form.Value["gitpassword"]
+		//if len(repo) == 0 || len(branch) == 0 {
+		//	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		//		"error": "Missing required fields",
+		//	})
+		//}
 		app.Spec.Source.GitRepo.URL = repo[0]
-		app.Spec.Source.GitRepo.Branch = branch[0]
-		app.Spec.Source.GitRepo.Username = gitUsername[0]
-		app.Spec.Source.GitRepo.Password = gitPassword[0]
+		//app.Spec.Source.GitRepo.Branch = branch[0]
+		//app.Spec.Source.GitRepo.Username = gitUsername[0]
+		//app.Spec.Source.GitRepo.Password = gitPassword[0]
 		app.Spec.Source.Type = "git"
 	}
 
-	resp, err := h.client.CreateApplication(context.Background(), &app)
+	resp, err := h.client.CreateResource(context.Background(), &cTypes.Resource{
+		Name:     app.Name,
+		Resource: "image-builder",
+		Spec:     app.Spec,
+	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create application",

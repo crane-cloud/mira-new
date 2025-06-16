@@ -9,7 +9,6 @@ import (
 	c "github.com/open-ug/conveyor/pkg/client"
 	runtime "github.com/open-ug/conveyor/pkg/driver-runtime"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
-	cTypes "github.com/open-ug/conveyor/pkg/types"
 )
 
 // Listen for messages from the runtime
@@ -19,29 +18,22 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 	log.Printf("Image Driver Reconciling: %v", payload)
 
 	if event == "create" {
-		var appMsg cTypes.ApplicationMsg
-		err := json.Unmarshal([]byte(payload), &appMsg)
+		var imageSpec ImageBuild
+		err := json.Unmarshal([]byte(payload), &imageSpec)
 		if err != nil {
 			return fmt.Errorf("error unmarshalling application message: %v", err)
 		}
 
-		if appMsg.Action == "create" {
-			app := appMsg.Payload
+		fmt.Println(imageSpec)
 
-			err := CreateBuildpacksImage(&app, logger)
-			if err != nil {
-				return fmt.Errorf("error creating buildpacks image: %v", err)
-			}
-
-			runtime.BroadCastMessage(
-				cTypes.DriverMessage{
-					Event:   "buildpack-create-complete",
-					Payload: payload,
-				},
-			)
-
-			return nil
+		err = CreateBuildpacksImage(&imageSpec, logger)
+		if err != nil {
+			log.Printf("Error creating image from git repository: %v", err)
+			return fmt.Errorf("error creating image from git repository: %v", err)
 		}
+
+		log.Printf("Image created successfully: %s", imageSpec.Name)
+
 	}
 
 	return nil
