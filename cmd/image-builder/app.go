@@ -1,10 +1,12 @@
 package imagebuilder
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 
+	c "github.com/open-ug/conveyor/pkg/client"
 	runtime "github.com/open-ug/conveyor/pkg/driver-runtime"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 	cTypes "github.com/open-ug/conveyor/pkg/types"
@@ -16,7 +18,7 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 	log.SetFlags(log.Ldate | log.Ltime)
 	log.Printf("Image Driver Reconciling: %v", payload)
 
-	if event == "application" {
+	if event == "create" {
 		var appMsg cTypes.ApplicationMsg
 		err := json.Unmarshal([]byte(payload), &appMsg)
 		if err != nil {
@@ -46,9 +48,17 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 }
 
 func Listen() {
+	client := c.NewClient()
+	_, err := client.CreateOrUpdateResourceDefinition(context.Background(), ImageBuilder)
+
+	if err != nil {
+		fmt.Println("Error creating or updating resource definition: ", err)
+	}
+
 	driver := &runtime.Driver{
 		Reconcile: Reconcile,
 		Name:      "mira",
+		Resources: []string{"image-builder"},
 	}
 
 	driverManager, err := runtime.NewDriverManager(driver, []string{"*"})
