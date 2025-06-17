@@ -25,7 +25,6 @@ func CloneGitRepo(app *ImageBuild) error {
 	if err != nil {
 		return fmt.Errorf("error cloning git repository: %v", err)
 	}
-	fmt.Println("Cloned")
 
 	return nil
 }
@@ -42,7 +41,6 @@ func DownloadFile(app *ImageBuild) error {
 	if resp.IsError() {
 		return fmt.Errorf("error downloading file: %v", resp.Status())
 	}
-	fmt.Println("Downloaded")
 	return nil
 
 }
