@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/buildpacks/pack/pkg/client"
+	"github.com/buildpacks/pack/pkg/image"
 	"github.com/buildpacks/pack/pkg/logging"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 )
@@ -59,10 +60,10 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 	}
 
 	buildOpts := client.BuildOptions{
-		AppPath: appPath,
-		Builder: "heroku/builder:24",
-		Image:   app.Name + "-bpimage",
-		//PullPolicy: config.PullAlways,
+		AppPath:    appPath,
+		Builder:    "heroku/builder:24",
+		Image:      app.Name + "-bpimage",
+		PullPolicy: image.PullIfNotPresent,
 	}
 
 	if err := cli.Build(context.Background(), buildOpts); err != nil {
