@@ -66,7 +66,7 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 	// Build configuration: We are to use Paketo Buildpacks
 	buildOpts := client.BuildOptions{
 		AppPath:    appPath,
-		Builder:    "paketobuildpacks/builder-jammy-base:latest",
+		Builder:    "paketobuildpacks/builder-jammy-base",
 		Image:      app.Name + "-bpimage",
 		PullPolicy: image.PullIfNotPresent,
 		Env: map[string]string{
