@@ -11,5 +11,6 @@ func ImageRoutes(app *fiber.App, cl *client.Client) {
 	imagePrefix := app.Group("/images")
 
 	imagePrefix.Post("/containerize", imageHandler.GenerateImage)
+	imagePrefix.Post("/detect", handlers.DetectFramework)
 
 }

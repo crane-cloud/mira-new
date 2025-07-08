@@ -47,8 +47,10 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	// get the fields from the form
 	name := form.Value["name"]
 	sourceType := form.Value["type"]
+	buildCmd := form.Value["buildCmd"]
+	outputDir := form.Value["outputDir"]
 
-	if len(name) == 0 || len(sourceType) == 0 {
+	if len(name) == 0 || len(sourceType) == 0 || len(buildCmd) == 0 || len(outputDir) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing required fields",
 		})
@@ -62,6 +64,8 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 
 	var app types.ImageBuild
 	app.Name = name[0]
+	app.Spec.BuildCommand = buildCmd[0]
+	app.Spec.OutputDir = outputDir[0]
 
 	// get the file from the form and check if it is a valid file. then save it to the server
 	if sourceType[0] == "file" {

@@ -63,11 +63,18 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		appPath = "/usr/local/crane/zip/" + app.Name
 	}
 
+	// Build configuration: We are to use Paketo Buildpacks
 	buildOpts := client.BuildOptions{
 		AppPath:    appPath,
-		Builder:    "heroku/builder:24",
+		Builder:    "paketobuildpacks/builder-jammy-base:latest",
 		Image:      app.Name + "-bpimage",
 		PullPolicy: image.PullIfNotPresent,
+		Env: map[string]string{
+			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
+			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
+			"BP_WEB_SERVER":       "nginx",
+		},
+		Buildpacks: []string{"paketo-buildpacks/web-servers"},
 	}
 
 	if err := cli.Build(context.Background(), buildOpts); err != nil {
