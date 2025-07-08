@@ -18,14 +18,14 @@ func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error 
 		logger.Log(map[string]string{}, "Fetching Codebase from Git Repository")
 		err := CloneGitRepo(app)
 		if err != nil {
-			log.Fatalf("failed to clone git repository: %v", err)
+			log.Printf("failed to clone git repository: %v", err)
 			return err
 		}
 	} else if app.Spec.Source.Type == "file" {
 		logger.Log(map[string]string{}, "Downloading File from URL")
 		err := HandleFileSource(app)
 		if err != nil {
-			log.Fatalf("failed to download file: %v", err)
+			log.Printf("failed to download file: %v", err)
 			return err
 		}
 	}
@@ -35,7 +35,7 @@ func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error 
 
 	err := BuildImage(app, logger)
 	if err != nil {
-		log.Fatalf("failed to build image: %v", err)
+		log.Printf("failed to build image: %v", err)
 		return err
 	}
 	fmt.Println("Image built successfully")
@@ -52,7 +52,7 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		client.WithLogger(logger),
 	)
 	if err != nil {
-		log.Fatalf("failed to create pack client: %v", err)
+		log.Printf("failed to create pack client: %v", err)
 		return err
 	}
 
@@ -78,7 +78,7 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 	}
 
 	if err := cli.Build(context.Background(), buildOpts); err != nil {
-		log.Fatalf("failed to build image: %v", err)
+		log.Printf("failed to build image: %v", err)
 		return err
 	}
 
