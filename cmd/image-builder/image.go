@@ -5,33 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/buildpacks/pack/pkg/client"
 	"github.com/buildpacks/pack/pkg/image"
 	"github.com/buildpacks/pack/pkg/logging"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 )
-
-func fixOwnership(path string) error {
-	profileDir := filepath.Join(path, ".profile.d")
-	scriptPath := filepath.Join(profileDir, "fix-perms.sh")
-
-	// Ensure .profile.d exists
-	if err := os.MkdirAll(profileDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .profile.d directory: %w", err)
-	}
-
-	// Write the fix-perms.sh script
-	scriptContent := `#!/bin/sh
-chmod -R u+rwX /workspace
-`
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		return fmt.Errorf("failed to write .profile.d/fix-perms.sh: %w", err)
-	}
-
-	return nil
-}
 
 // CreateBuildpacksImage creates a buildpacks image
 func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error {
@@ -85,17 +64,12 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		appPath = "/usr/local/crane/zip/" + app.Name
 	}
 
-	// fix ownership of appPath
-	if err := fixOwnership(appPath); err != nil {
-		return fmt.Errorf("failed to chown app directory: %w", err)
-	}
-
 	var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
 
 	// Build configuration: We are to use Paketo Buildpacks
 	buildOpts := client.BuildOptions{
 		AppPath:    appPath,
-		Builder:    "paketobuildpacks/builder-jammy-base",
+		Builder:    "paketobuildpacks/builder-jammy-full",
 		Image:      DOCKER_USERNAME + "/" + app.Spec.ProjectID + app.Name,
 		PullPolicy: image.PullIfNotPresent,
 		Publish:    true,
@@ -103,6 +77,8 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
 			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
 			"BP_WEB_SERVER":       "nginx",
+			"CNB_USER_ID":         "0", // Root user ID
+			"CNB_GROUP_ID":        "0", // Root group ID
 		},
 		Buildpacks: []string{"paketo-buildpacks/web-servers"},
 	}
