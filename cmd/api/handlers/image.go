@@ -40,6 +40,7 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	sourceType := form.Value["type"]
 	buildCmd := form.Value["build_command"]
 	outputDir := form.Value["output_directory"]
+	token := form.Value["token"]
 
 	if len(name) == 0 || len(sourceType) == 0 || len(buildCmd) == 0 || len(outputDir) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -57,6 +58,8 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	app.Name = name[0]
 	app.Spec.BuildCommand = buildCmd[0]
 	app.Spec.OutputDir = outputDir[0]
+	app.Spec.ProjectID = form.Value["project"][0]
+	app.Spec.Token = token[0]
 
 	// get the file from the form and check if it is a valid file. then save it to the server
 	if sourceType[0] == "file" {
