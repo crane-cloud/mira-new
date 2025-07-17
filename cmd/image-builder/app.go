@@ -46,7 +46,7 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 			},
 		}
 
-		logger.Log(map[string]string{}, "Deploying image to Crane Cloud: "+imageSpec.Name)
+		logger.Log(map[string]string{}, "\r\nDeploying image to Crane Cloud: "+imageSpec.Name+"\r\n")
 
 		err = crane_cloud_app.DeployToCraneCloud(imageSpec.Spec.Token)
 		if err != nil {
@@ -54,7 +54,7 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 			return fmt.Errorf("error deploying image to Crane Cloud: %v", err)
 		}
 		// Log the successful creation of the image
-		logger.Log(map[string]string{}, "SUCCESSFULLY DEPLOYED IMAGE TO CRANE CLOUD: "+crane_cloud_app.Image)
+		logger.Log(map[string]string{}, "\r\nSUCCESSFULLY DEPLOYED IMAGE TO CRANE CLOUD: "+crane_cloud_app.Image+"\r\n")
 
 		log.Printf("Image created successfully: %s", imageSpec.Name)
 

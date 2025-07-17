@@ -16,7 +16,7 @@ import (
 func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error {
 
 	if app.Spec.Source.Type == "git" {
-		logger.Log(map[string]string{}, "Fetching Codebase from Git Repository")
+		logger.Log(map[string]string{}, "Fetching Codebase from Git Repository\r\n")
 		err := CloneGitRepo(app)
 		if err != nil {
 			log.Printf("failed to clone git repository: %v", err)
@@ -32,7 +32,7 @@ func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error 
 	}
 
 	fmt.Println("building image")
-	logger.Log(map[string]string{}, "Image Build Process Started")
+	logger.Log(map[string]string{}, "Image Build Process Started\r\n")
 
 	err := BuildImage(app, logger)
 	if err != nil {
@@ -40,7 +40,7 @@ func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error 
 		return err
 	}
 	fmt.Println("Image built successfully")
-	logger.Log(map[string]string{}, "SUCCESS: Image built successfully: "+app.Name)
+	logger.Log(map[string]string{}, "\r\nSUCCESS: Image built successfully: "+app.Name+"\r\n")
 
 	return nil
 }
