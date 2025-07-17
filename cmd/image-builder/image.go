@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/buildpacks/pack/pkg/client"
 	"github.com/buildpacks/pack/pkg/image"
@@ -63,12 +64,15 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		appPath = "/usr/local/crane/zip/" + app.Name
 	}
 
+	var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
+
 	// Build configuration: We are to use Paketo Buildpacks
 	buildOpts := client.BuildOptions{
 		AppPath:    appPath,
 		Builder:    "paketobuildpacks/builder-jammy-base",
-		Image:      app.Name + "-bpimage",
+		Image:      DOCKER_USERNAME + "/" + app.Spec.ProjectID + app.Name,
 		PullPolicy: image.PullIfNotPresent,
+		Publish:    true,
 		Env: map[string]string{
 			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
 			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,

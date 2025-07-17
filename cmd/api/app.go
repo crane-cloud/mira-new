@@ -26,11 +26,7 @@ func StartServer(port string) {
 	})
 
 	// Enable CORS
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept",
-		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
-	}))
+	app.Use(cors.New())
 
 	app.Get("/api/health", func(c *fiber.Ctx) error {
 		return c.SendString("OK")

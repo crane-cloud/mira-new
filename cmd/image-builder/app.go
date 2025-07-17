@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	c "github.com/open-ug/conveyor/pkg/client"
 	runtime "github.com/open-ug/conveyor/pkg/driver-runtime"
@@ -15,7 +16,7 @@ import (
 func Reconcile(payload string, event string, driverName string, logger *dLogger.DriverLogger) error {
 
 	log.SetFlags(log.Ldate | log.Ltime)
-	log.Printf("Image Driver Reconciling: %v", payload)
+	log.Printf("MIRA Reconciling: %v", payload)
 
 	if event == "create" {
 		var imageSpec ImageBuild
@@ -24,13 +25,33 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 			return fmt.Errorf("error unmarshalling application message: %v", err)
 		}
 
-		fmt.Println(imageSpec)
-
 		err = CreateBuildpacksImage(&imageSpec, logger)
 		if err != nil {
 			log.Printf("Error creating image from git repository: %v", err)
 			return fmt.Errorf("error creating image from git repository: %v", err)
 		}
+
+		var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
+
+		// Deploy to Crane Cloud
+		crane_cloud_app := &CraneCloudData{
+			Image:        DOCKER_USERNAME + "/" + imageSpec.Spec.ProjectID + imageSpec.Name,
+			Name:         imageSpec.Name,
+			ProjectID:    imageSpec.Spec.ProjectID,
+			PrivateImage: true,
+			Replicas:     1,
+			Port:         imageSpec.Spec.Port,
+		}
+
+		logger.Log(map[string]string{}, "Deploying image to Crane Cloud: "+imageSpec.Name)
+
+		err = crane_cloud_app.DeployToCraneCloud(imageSpec.Spec.Token)
+		if err != nil {
+			logger.Log(map[string]string{}, "Error deploying image to Crane Cloud")
+			return fmt.Errorf("error deploying image to Crane Cloud: %v", err)
+		}
+		// Log the successful creation of the image
+		logger.Log(map[string]string{}, "SUCCESSFULLY DEPLOYED IMAGE TO CRANE CLOUD: "+crane_cloud_app.Image)
 
 		log.Printf("Image created successfully: %s", imageSpec.Name)
 

@@ -22,6 +22,12 @@ var ImageBuilder = &cTypes.ResourceDefinition{
 					"outputDir": map[string]interface{}{
 						"type": "string",
 					},
+					"projectId": map[string]interface{}{
+						"type": "string",
+					},
+					"token": map[string]interface{}{
+						"type": "string",
+					},
 					"gitRepo": map[string]interface{}{
 						"type": "object",
 						"properties": map[string]interface{}{
@@ -56,6 +62,9 @@ type ImageBuilderSpec struct {
 	Source       ImageBuilderSource `json:"source"`
 	BuildCommand string             `json:"buildCommand"`
 	OutputDir    string             `json:"outputDir"`
+	ProjectID    string             `json:"projectId,omitempty"`
+	Token        string             `json:"token"`
+	Port         int                `json:"port,omitempty"`
 }
 
 type ImageBuilderSource struct {

@@ -28,15 +28,6 @@ func NewImageHandler(cl *client.Client) *ImageHandler {
 
 func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 
-	// the request body should be a FormData
-	// and should contain the following fields:
-	// - name: string
-	// - type: git | file
-	// - branch: string
-	// - repo: string
-	// - gitusername: string | optional
-	// - gitpassword: string | optional
-
 	// the request should be a multipart/form-data
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -47,8 +38,8 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	// get the fields from the form
 	name := form.Value["name"]
 	sourceType := form.Value["type"]
-	buildCmd := form.Value["buildCmd"]
-	outputDir := form.Value["outputDir"]
+	buildCmd := form.Value["build_command"]
+	outputDir := form.Value["output_directory"]
 
 	if len(name) == 0 || len(sourceType) == 0 || len(buildCmd) == 0 || len(outputDir) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
