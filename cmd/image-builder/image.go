@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 
 	"github.com/buildpacks/pack/pkg/client"
 	"github.com/buildpacks/pack/pkg/image"
 	"github.com/buildpacks/pack/pkg/logging"
 	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 )
+
+func fixOwnership(path string) error {
+	cmd := exec.Command("chmod", "-R", "777", path)
+	return cmd.Run()
+}
 
 // CreateBuildpacksImage creates a buildpacks image
 func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error {
@@ -62,6 +68,11 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		appPath = "/usr/local/crane/git/" + app.Name
 	} else if app.Spec.Source.Type == "file" {
 		appPath = "/usr/local/crane/zip/" + app.Name
+	}
+
+	// fix ownership of appPath
+	if err := fixOwnership(appPath); err != nil {
+		return fmt.Errorf("failed to chown app directory: %w", err)
 	}
 
 	var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
