@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 
 	"fmt"
 
@@ -24,6 +25,16 @@ func NewImageHandler(cl *client.Client) *ImageHandler {
 	return &ImageHandler{
 		client: cl,
 	}
+}
+
+func toWebSocketURL(apiURL string) string {
+	if strings.HasPrefix(apiURL, "https://") {
+		return strings.TrimPrefix(apiURL, "https://")
+	}
+	if strings.HasPrefix(apiURL, "http://") {
+		return strings.TrimPrefix(apiURL, "http://")
+	}
+	return apiURL // fallback, if it's already ws/wss
 }
 
 func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
@@ -119,7 +130,7 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"name":   resp.Name,
 			"runid":  resp.RunID,
-			"wspath": h.client.GetAPIURL() + "/drivers/streams/logs/mira/" + resp.RunID,
+			"wspath": toWebSocketURL(h.client.GetAPIURL()) + "/drivers/streams/logs/mira/" + resp.RunID,
 		},
 	})
 
