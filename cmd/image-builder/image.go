@@ -64,19 +64,21 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		appPath = "/usr/local/crane/zip/" + app.Name
 	}
 
+	//WriteNginxConfig(appPath, app.Spec.OutputDir)
+
 	var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
 
 	// Build configuration: We are to use Paketo Buildpacks
 	buildOpts := client.BuildOptions{
 		AppPath:    appPath,
-		Builder:    "paketobuildpacks/builder-jammy-full",
+		Builder:    "paketobuildpacks/builder-jammy-base",
 		Image:      DOCKER_USERNAME + "/" + app.Spec.ProjectID + app.Name,
 		PullPolicy: image.PullIfNotPresent,
 		Publish:    true,
 		Env: map[string]string{
 			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
 			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
-			"BP_WEB_SERVER":       "nginx",
+			"BP_WEB_SERVER":       "httpd",
 			"CNB_USER_ID":         "0", // Root user ID
 			"CNB_GROUP_ID":        "0", // Root group ID
 		},
