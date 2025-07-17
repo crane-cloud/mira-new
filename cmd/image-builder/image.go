@@ -86,8 +86,6 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		Image:      DOCKER_USERNAME + "/" + app.Spec.ProjectID + app.Name,
 		PullPolicy: image.PullIfNotPresent,
 		Publish:    true,
-		UserID:     1002,
-		GroupID:    1000,
 		Env: map[string]string{
 			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
 			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
