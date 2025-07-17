@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
+	"path/filepath"
 
 	"github.com/buildpacks/pack/pkg/client"
 	"github.com/buildpacks/pack/pkg/image"
@@ -14,10 +14,23 @@ import (
 )
 
 func fixOwnership(path string) error {
-	cmd := exec.Command("chmod", "-R", "777", path)
-	cmd.Run()
-	cmd2 := exec.Command("chown", "-R", "1002:1000", path)
-	return cmd2.Run()
+	profileDir := filepath.Join(path, ".profile.d")
+	scriptPath := filepath.Join(profileDir, "fix-perms.sh")
+
+	// Ensure .profile.d exists
+	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .profile.d directory: %w", err)
+	}
+
+	// Write the fix-perms.sh script
+	scriptContent := `#!/bin/sh
+chmod -R u+rwX /workspace
+`
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		return fmt.Errorf("failed to write .profile.d/fix-perms.sh: %w", err)
+	}
+
+	return nil
 }
 
 // CreateBuildpacksImage creates a buildpacks image
