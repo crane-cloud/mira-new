@@ -15,7 +15,9 @@ import (
 
 func fixOwnership(path string) error {
 	cmd := exec.Command("chmod", "-R", "777", path)
-	return cmd.Run()
+	cmd.Run()
+	cmd2 := exec.Command("chown", "-R", "1002:1000", path)
+	return cmd2.Run()
 }
 
 // CreateBuildpacksImage creates a buildpacks image
@@ -84,6 +86,8 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		Image:      DOCKER_USERNAME + "/" + app.Spec.ProjectID + app.Name,
 		PullPolicy: image.PullIfNotPresent,
 		Publish:    true,
+		UserID:     1002,
+		GroupID:    1000,
 		Env: map[string]string{
 			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
 			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
