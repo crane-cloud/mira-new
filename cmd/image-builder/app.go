@@ -41,7 +41,9 @@ func Reconcile(payload string, event string, driverName string, logger *dLogger.
 			PrivateImage: false,
 			Replicas:     1,
 			Port:         8080,
-			EnvVars:      map[string]string{},
+			EnvVars: map[string]string{
+				"PORT": "8080",
+			},
 		}
 
 		logger.Log(map[string]string{}, "Deploying image to Crane Cloud: "+imageSpec.Name)
