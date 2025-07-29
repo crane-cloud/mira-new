@@ -1,0 +1,91 @@
+# Edit this file to configure your Docker Compose setup
+services:
+  etcd:
+    image: bitnami/etcd:latest
+    container_name: etcd
+    volumes:
+      - etcd-data:/bitnami/etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    networks:
+      - mira-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    volumes:
+      - loki-data:/loki
+      - ./loki.yml:/mnt/config/loki.yml # Edit this line to point to your config file
+    command: -config.file=/mnt/config/loki.yml
+    ports:
+      - "3100:3100"
+    networks:
+      - mira-network
+
+  nats:
+    image: nats:latest
+    container_name: nats
+    ports:
+      - "4222:4222" # Client connections
+    networks:
+      - mira-network
+    command: [
+        "-js", # enable JetStream
+        "--store_dir",
+        "/data/js", # JetStream storage location
+      ]
+    volumes:
+      - nats-data:/data/js
+
+  app:
+    image: openug/conveyor:latest
+    container_name: app
+    depends_on:
+      - etcd
+      - loki
+      - nats
+    ports:
+      - "8080:8080"
+    environment:
+      - ETCD_ENDPOINT=http://etcd:2379
+      - LOKI_ENDPOINT=http://loki:3100
+      - NATS_URL=nats://nats:4222
+    networks:
+      - mira-network
+
+  api:
+    image: jimjuniorb/mira:latest
+    container_name: mira
+    depends_on:
+      - app
+    ports:
+      - "3000:3000"
+    command: ["api-server"]
+    environment:
+      - MIRAD_ENDPOINT=http://app:8080
+    networks:
+      - mira-network
+
+  imagebuilder:
+    image: jimjuniorb/mira:latest
+    container_name: imagebuilder
+    depends_on:
+      - app
+    command: ["image-builder"]
+    environment:
+      - MIRAD_ENDPOINT=http://app:8080
+    networks:
+      - mira-network
+
+volumes:
+  etcd-data:
+  loki-data:
+  nats-data:
+
+networks:
+  mira-network:
+    driver: bridge

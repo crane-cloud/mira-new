@@ -2,7 +2,6 @@ package imagebuilder
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -31,7 +30,6 @@ func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error 
 		}
 	}
 
-	fmt.Println("building image")
 	logger.Log(map[string]string{}, "Image Build Process Started\r\n")
 
 	err := BuildImage(app, logger)
@@ -39,7 +37,6 @@ func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error 
 		log.Printf("failed to build image: %v", err)
 		return err
 	}
-	fmt.Println("Image built successfully")
 	logger.Log(map[string]string{}, "\r\nSUCCESS: Image built successfully: "+app.Name+"\r\n")
 
 	return nil
@@ -68,21 +65,51 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 
 	var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
 
+	var env = map[string]string{
+		"CNB_USER_ID":  "0", // Root user ID
+		"CNB_GROUP_ID": "0", // Root group ID
+	}
+
+	var buildpacks = []string{}
+	var builder string
+
+	/*
+		add these envs to already existing envs
+		map[string]string{
+				"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
+				"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
+				"BP_WEB_SERVER":       "httpd",
+				"CNB_USER_ID":         "0", // Root user ID
+				"CNB_GROUP_ID":        "0", // Root group ID
+			},
+	*/
+
+	if app.Spec.Env != nil {
+		for key, value := range app.Spec.Env {
+			env[key] = value
+		}
+	}
+
+	if !app.Spec.SSR {
+		env["BP_WEB_SERVER"] = "httpd"
+		env["BP_NODE_RUN_SCRIPTS"] = app.Spec.BuildCommand
+		env["BP_WEB_SERVER_ROOT"] = app.Spec.OutputDir
+		buildpacks = append(buildpacks, "paketo-buildpacks/web-servers")
+		builder = "paketobuildpacks/builder-jammy-base"
+	} else {
+		buildpacks = append(buildpacks, "heroku/nodejs")
+		builder = "heroku/builder:24"
+	}
+
 	// Build configuration: We are to use Paketo Buildpacks
 	buildOpts := client.BuildOptions{
 		AppPath:    appPath,
-		Builder:    "paketobuildpacks/builder-jammy-base",
+		Builder:    builder,
 		Image:      DOCKER_USERNAME + "/" + app.Spec.ProjectID + app.Name,
 		PullPolicy: image.PullIfNotPresent,
 		Publish:    true,
-		Env: map[string]string{
-			"BP_NODE_RUN_SCRIPTS": app.Spec.BuildCommand,
-			"BP_WEB_SERVER_ROOT":  app.Spec.OutputDir,
-			"BP_WEB_SERVER":       "httpd",
-			"CNB_USER_ID":         "0", // Root user ID
-			"CNB_GROUP_ID":        "0", // Root group ID
-		},
-		Buildpacks: []string{"paketo-buildpacks/web-servers"},
+		Env:        env,
+		Buildpacks: buildpacks,
 	}
 
 	if err := cli.Build(context.Background(), buildOpts); err != nil {

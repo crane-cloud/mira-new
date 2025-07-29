@@ -19,6 +19,9 @@ var ImageBuilder = &cTypes.ResourceDefinition{
 					"buildCommand": map[string]interface{}{
 						"type": "string",
 					},
+					"ssr": map[string]interface{}{
+						"type": "boolean",
+					},
 					"outputDir": map[string]interface{}{
 						"type": "string",
 					},
@@ -27,6 +30,12 @@ var ImageBuilder = &cTypes.ResourceDefinition{
 					},
 					"token": map[string]interface{}{
 						"type": "string",
+					},
+					"env": map[string]interface{}{
+						"type": "object",
+						"additionalProperties": map[string]interface{}{
+							"type": "string",
+						},
 					},
 					"gitRepo": map[string]interface{}{
 						"type": "object",
@@ -64,7 +73,9 @@ type ImageBuilderSpec struct {
 	OutputDir    string             `json:"outputDir"`
 	ProjectID    string             `json:"projectId,omitempty"`
 	Token        string             `json:"token"`
+	SSR          bool               `json:"ssr"`
 	Port         int                `json:"port,omitempty"`
+	Env          map[string]string  `json:"env"`
 }
 
 type ImageBuilderSource struct {

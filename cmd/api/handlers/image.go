@@ -71,6 +71,21 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	app.Spec.OutputDir = outputDir[0]
 	app.Spec.ProjectID = form.Value["project"][0]
 	app.Spec.Token = token[0]
+	app.Spec.SSR = form.Value["ssr"][0] == "true"
+	app.Spec.Env = make(map[string]string)
+
+	// get the environment variables from the form
+	// The environment variables are expected to be in JSON format, e.g. {"key1": "value1", "key2": "value2"}
+	envVars := form.Value["env"]
+	if len(envVars) > 0 {
+		envMap, err := utils.ParseJSONToMap(envVars[0])
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid environment variables format",
+			})
+		}
+		app.Spec.Env = envMap
+	}
 
 	// get the file from the form and check if it is a valid file. then save it to the server
 	if sourceType[0] == "file" {
