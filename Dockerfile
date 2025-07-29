@@ -19,7 +19,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/mira ./main.go
 
 # Stage 2: Create the final image
-FROM debian:bookworm-slim
+FROM ubuntu:latest
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -29,11 +29,9 @@ RUN apt-get update && apt-get install -y \
   docker.io \
   && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user (optional)
-RUN useradd -m appuser
 
 # Set working directory
-WORKDIR /home/appuser
+WORKDIR /app
 
 # Copy the built binary
 COPY --from=builder /bin/mira /usr/local/bin/mira
@@ -41,8 +39,6 @@ COPY --from=builder /bin/mira /usr/local/bin/mira
 # Make binary executable
 RUN chmod +x /usr/local/bin/mira
 
-# Run as non-root user
-USER appuser
 
 # Default command (can be overridden at runtime)
 ENTRYPOINT ["mira"]
