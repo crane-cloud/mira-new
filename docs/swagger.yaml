@@ -1,46 +1,6 @@
 basePath: /api
 definitions:
-  handlers.GenerateImageRequest:
-    properties:
-      build_command:
-        example: npm run build
-        type: string
-      env:
-        additionalProperties:
-          type: string
-        type: object
-      file_url:
-        example: http://example.com/file.zip
-        type: string
-      name:
-        example: my-app
-        type: string
-      output_directory:
-        example: dist
-        type: string
-      project:
-        example: proj-123
-        type: string
-      repo:
-        example: https://github.com/user/repo.git
-        type: string
-      ssr:
-        example: false
-        type: boolean
-      token:
-        type: string
-      type:
-        example: git
-        type: string
-    required:
-    - build_command
-    - name
-    - output_directory
-    - project
-    - token
-    - type
-    type: object
-  handlers.RequestBody:
+  handlers.DetectFrameworkRequest:
     properties:
       repo_url:
         example: https://github.com/user/repo
@@ -124,6 +84,40 @@ definitions:
       web_url:
         example: https://gitlab.com/user/my-project
         type: string
+    type: object
+  schemas.GenerateImageRequest:
+    properties:
+      access_token:
+        type: string
+      build_command:
+        example: npm run build
+        type: string
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        example: my-app
+        type: string
+      output_directory:
+        example: dist
+        type: string
+      project_id:
+        example: proj-123
+        type: string
+      repo:
+        example: https://github.com/user/repo.git
+        type: string
+      ssr:
+        example: false
+        type: boolean
+    required:
+    - access_token
+    - build_command
+    - name
+    - output_directory
+    - project_id
+    - repo
     type: object
 host: localhost:3000
 info:
@@ -232,16 +226,15 @@ paths:
     post:
       consumes:
       - application/json
-      - multipart/form-data
-      description: Converts source code from Git repository or uploaded file into
-        a Docker image and deploys to Crane Cloud
+      description: Converts source code from Git repository into a Docker image and
+        deploys to Crane Cloud
       parameters:
       - description: Build configuration
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.GenerateImageRequest'
+          $ref: '#/definitions/schemas.GenerateImageRequest'
       produces:
       - application/json
       responses:
@@ -264,31 +257,35 @@ paths:
     post:
       consumes:
       - application/json
-      description: Analyzes package.json and other configuration files to detect the
-        technology stack
+      description: Analyzes package.json and configuration files to detect JavaScript
+        frameworks
       parameters:
       - description: Repository URL
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.RequestBody'
+          $ref: '#/definitions/handlers.DetectFrameworkRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Detected frameworks and technologies
+          description: Detected JavaScript frameworks
           schema:
             $ref: '#/definitions/models.FrameworkDetectionResponse'
         "400":
-          description: Invalid request
+          description: Invalid request or not a GitHub repository
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Repository not found
           schema:
             $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal server error
           schema:
             $ref: '#/definitions/models.ErrorResponse'
-      summary: Detect framework from repository
+      summary: Detect JavaScript framework from repository
       tags:
       - images
   /user/github/repos:

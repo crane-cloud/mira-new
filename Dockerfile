@@ -41,15 +41,32 @@ RUN apk add --no-cache \
     git \
     curl \
     docker \
+    docker-cli \
     && rm -rf /var/cache/apk/*
+
+# Add user to docker group for socket access
+RUN addgroup -g 999 docker || true
+RUN adduser -D -u 1000 appuser || true  
+RUN adduser appuser docker || true
+
 # Set working directory
 WORKDIR /app
 
 # Copy Air binary from builder
 COPY --from=builder /go/bin/air /usr/local/bin/air
 
-RUN mkdir -p /app/uploads /app/logs /app/builds /app/tmp
+
+# Copy scripts from builder stage
+# COPY --from=builder /app/scripts/start-imagebuilder.sh ./scripts/start-imagebuilder.sh
+
+# Make scripts executable
+# RUN chmod +x ./scripts/start-imagebuilder.sh
+
+RUN mkdir -p /app/uploads /app/logs /app/builds /app/tmp /usr/local/crane
 
 EXPOSE 3000
+
+# Switch to non-root user (commented out for Docker socket access)
+# USER appuser
 
 CMD ["air"]

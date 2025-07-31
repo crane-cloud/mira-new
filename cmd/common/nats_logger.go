@@ -21,7 +21,7 @@ func NewNATSLogger(nc *nats.Conn, buildID string) *NATSLogger {
 	return &NATSLogger{
 		nc:      nc,
 		buildID: buildID,
-		subject: fmt.Sprintf("mira.logs.%s", buildID),
+		subject: BuildLogsSubject(buildID),
 	}
 }
 

@@ -159,10 +159,9 @@ const docTemplate = `{
         },
         "/images/containerize": {
             "post": {
-                "description": "Converts source code from Git repository or uploaded file into a Docker image and deploys to Crane Cloud",
+                "description": "Converts source code from Git repository into a Docker image and deploys to Crane Cloud",
                 "consumes": [
-                    "application/json",
-                    "multipart/form-data"
+                    "application/json"
                 ],
                 "produces": [
                     "application/json"
@@ -178,7 +177,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.GenerateImageRequest"
+                            "$ref": "#/definitions/schemas.GenerateImageRequest"
                         }
                     }
                 ],
@@ -206,7 +205,7 @@ const docTemplate = `{
         },
         "/images/detect": {
             "post": {
-                "description": "Analyzes package.json and other configuration files to detect the technology stack",
+                "description": "Analyzes package.json and configuration files to detect JavaScript frameworks",
                 "consumes": [
                     "application/json"
                 ],
@@ -216,7 +215,7 @@ const docTemplate = `{
                 "tags": [
                     "images"
                 ],
-                "summary": "Detect framework from repository",
+                "summary": "Detect JavaScript framework from repository",
                 "parameters": [
                     {
                         "description": "Repository URL",
@@ -224,19 +223,25 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.RequestBody"
+                            "$ref": "#/definitions/handlers.DetectFrameworkRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Detected frameworks and technologies",
+                        "description": "Detected JavaScript frameworks",
                         "schema": {
                             "$ref": "#/definitions/models.FrameworkDetectionResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request or not a GitHub repository",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Repository not found",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -338,61 +343,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handlers.GenerateImageRequest": {
-            "type": "object",
-            "required": [
-                "build_command",
-                "name",
-                "output_directory",
-                "project",
-                "token",
-                "type"
-            ],
-            "properties": {
-                "build_command": {
-                    "type": "string",
-                    "example": "npm run build"
-                },
-                "env": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "file_url": {
-                    "type": "string",
-                    "example": "http://example.com/file.zip"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "my-app"
-                },
-                "output_directory": {
-                    "type": "string",
-                    "example": "dist"
-                },
-                "project": {
-                    "type": "string",
-                    "example": "proj-123"
-                },
-                "repo": {
-                    "type": "string",
-                    "example": "https://github.com/user/repo.git"
-                },
-                "ssr": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "git"
-                }
-            }
-        },
-        "handlers.RequestBody": {
+        "handlers.DetectFrameworkRequest": {
             "type": "object",
             "required": [
                 "repo_url"
@@ -510,6 +461,52 @@ const docTemplate = `{
                 "web_url": {
                     "type": "string",
                     "example": "https://gitlab.com/user/my-project"
+                }
+            }
+        },
+        "schemas.GenerateImageRequest": {
+            "type": "object",
+            "required": [
+                "access_token",
+                "build_command",
+                "name",
+                "output_directory",
+                "project_id",
+                "repo"
+            ],
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "build_command": {
+                    "type": "string",
+                    "example": "npm run build"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "my-app"
+                },
+                "output_directory": {
+                    "type": "string",
+                    "example": "dist"
+                },
+                "project_id": {
+                    "type": "string",
+                    "example": "proj-123"
+                },
+                "repo": {
+                    "type": "string",
+                    "example": "https://github.com/user/repo.git"
+                },
+                "ssr": {
+                    "type": "boolean",
+                    "example": false
                 }
             }
         }

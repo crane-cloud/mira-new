@@ -71,12 +71,20 @@ services:
       - nats
       - api
     entrypoint: []
-    command: ["sh", "-c", "cd /app && air -- image-builder"]
+    command:
+      [
+        "sh",
+        "-c",
+        "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && air -- image-builder",
+      ]
     environment:
       - NATS_URL=nats://nats:4222
-      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-testuser}
-      - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://api.cranecloud.io}
+      - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://staging.api.cranecloud.io}
       - CGO_ENABLED=0
+      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
+      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PACK_VOLUME_KEY=${PACK_VOLUME_KEY:-mira-pack-cache}
     env_file:
       - .env
     networks:
@@ -84,11 +92,18 @@ services:
     volumes:
       - .:/app
       - go-cache:/go/pkg/mod
+      - pack-cache:/pack-cache
+      - docker-cache:/var/lib/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/local/crane:/usr/local/crane
     restart: unless-stopped
+    privileged: true
 
 volumes:
   nats-data:
   go-cache:
+  pack-cache:
+  docker-cache:
 
 networks:
   mira-network:

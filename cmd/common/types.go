@@ -18,7 +18,7 @@ type ImageBuilderSpec struct {
 	BuildCommand string             `json:"buildCommand"`
 	OutputDir    string             `json:"outputDir"`
 	ProjectID    string             `json:"projectId,omitempty"`
-	Token        string             `json:"token"`
+	AccessToken  string             `json:"accessToken"`
 	SSR          bool               `json:"ssr"`
 	Port         int                `json:"port,omitempty"`
 	Env          map[string]string  `json:"env"`

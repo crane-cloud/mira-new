@@ -69,6 +69,9 @@ func StartServer(port string) {
 
 	app.Static("/uploads", "./uploads")
 
+	// Serve static files from public directory
+	app.Static("/", "./public")
+
 	// Swagger documentation
 	app.Get("/api/docs/*", fiberSwagger.WrapHandler)
 

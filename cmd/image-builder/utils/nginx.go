@@ -1,4 +1,4 @@
-package imagebuilder
+package utils
 
 import (
 	"fmt"
@@ -6,8 +6,25 @@ import (
 	"path/filepath"
 )
 
+// WriteNginxConfig creates an nginx configuration file for static sites
 func WriteNginxConfig(appPath string, webServerRoot string) error {
-	nginxConfig := `worker_processes auto;
+	nginxConfig := generateNginxConfig(webServerRoot)
+
+	// Create the nginx.conf file path
+	nginxConfPath := filepath.Join(appPath, "nginx.conf")
+
+	// Write the nginx configuration to the file
+	if err := os.WriteFile(nginxConfPath, []byte(nginxConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write nginx.conf: %w", err)
+	}
+
+	fmt.Printf("nginx.conf written to: %s\n", nginxConfPath)
+	return nil
+}
+
+// generateNginxConfig generates the nginx configuration content
+func generateNginxConfig(webServerRoot string) string {
+	return `worker_processes auto;
 daemon off;
 pid /tmp/nginx.pid;
 
@@ -116,15 +133,6 @@ http {
             }
         }
 
-        # API proxy (if needed) - uncomment and modify as needed
-        # location /api/ {
-        #     proxy_pass http://backend-service:8080/;
-        #     proxy_set_header Host $host;
-        #     proxy_set_header X-Real-IP $remote_addr;
-        #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        #     proxy_set_header X-Forwarded-Proto $scheme;
-        # }
-
         # Health check endpoint
         location /health {
             access_log off;
@@ -140,15 +148,4 @@ http {
         }
     }
 }`
-
-	// Create the nginx.conf file path
-	nginxConfPath := filepath.Join(appPath, "nginx.conf")
-
-	// Write the nginx configuration to the file
-	if err := os.WriteFile(nginxConfPath, []byte(nginxConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write nginx.conf: %w", err)
-	}
-
-	fmt.Printf("nginx.conf written to: %s\n", nginxConfPath)
-	return nil
 }
