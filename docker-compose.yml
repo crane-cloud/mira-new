@@ -45,13 +45,16 @@ services:
       - NATS_URL=nats://nats:4222
       - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-testuser}
       - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://api.cranecloud.io}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
-      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI:-}
-      - GITLAB_CLIENT_ID=${GITLAB_CLIENT_ID:-}
-      - GITLAB_CLIENT_SECRET=${GITLAB_CLIENT_SECRET:-}
-      - GITLAB_REDIRECT_URI=${GITLAB_REDIRECT_URI:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI}
+      - GITLAB_CLIENT_ID=${GITLAB_CLIENT_ID}
+      - GITLAB_CLIENT_SECRET=${GITLAB_CLIENT_SECRET}
+      - GITLAB_REDIRECT_URI=${GITLAB_REDIRECT_URI}
+      - FRONTEND_REDIRECT_URL=${FRONTEND_REDIRECT_URL}
       - CGO_ENABLED=0
+    env_file:
+      - .env
     networks:
       - mira-network
     volumes:
@@ -74,6 +77,8 @@ services:
       - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-testuser}
       - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://api.cranecloud.io}
       - CGO_ENABLED=0
+    env_file:
+      - .env
     networks:
       - mira-network
     volumes:

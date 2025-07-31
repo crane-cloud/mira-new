@@ -19,10 +19,6 @@ mira
 logs/
 *.log
 
-# Development files
-.env
-.env.*
-!.env.example
 
 # IDE files
 .vscode/
