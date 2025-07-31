@@ -1,0 +1,356 @@
+basePath: /api
+definitions:
+  handlers.GenerateImageRequest:
+    properties:
+      build_command:
+        example: npm run build
+        type: string
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      file_url:
+        example: http://example.com/file.zip
+        type: string
+      name:
+        example: my-app
+        type: string
+      output_directory:
+        example: dist
+        type: string
+      project:
+        example: proj-123
+        type: string
+      repo:
+        example: https://github.com/user/repo.git
+        type: string
+      ssr:
+        example: false
+        type: boolean
+      token:
+        type: string
+      type:
+        example: git
+        type: string
+    required:
+    - build_command
+    - name
+    - output_directory
+    - project
+    - token
+    - type
+    type: object
+  handlers.RequestBody:
+    properties:
+      repo_url:
+        example: https://github.com/user/repo
+        type: string
+    required:
+    - repo_url
+    type: object
+  models.BuildData:
+    properties:
+      build_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      logs_url:
+        example: ws://localhost:3000/api/logs/550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: my-app
+        type: string
+    type: object
+  models.BuildResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.BuildData'
+      message:
+        example: Image generation started
+        type: string
+    type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        example: Invalid request format
+        type: string
+    type: object
+  models.FrameworkDetectionResponse:
+    properties:
+      frameworks:
+        additionalProperties: true
+        type: object
+      message:
+        example: Framework detection completed
+        type: string
+    type: object
+  models.GitHubRepository:
+    properties:
+      clone_url:
+        example: https://github.com/user/my-repo.git
+        type: string
+      full_name:
+        example: user/my-repo
+        type: string
+      html_url:
+        example: https://github.com/user/my-repo
+        type: string
+      id:
+        example: 12345
+        type: integer
+      name:
+        example: my-repo
+        type: string
+      private:
+        example: false
+        type: boolean
+    type: object
+  models.GitLabProject:
+    properties:
+      http_url_to_repo:
+        example: https://gitlab.com/user/my-project.git
+        type: string
+      id:
+        example: 67890
+        type: integer
+      name:
+        example: my-project
+        type: string
+      name_with_namespace:
+        example: user/my-project
+        type: string
+      visibility:
+        example: private
+        type: string
+      web_url:
+        example: https://gitlab.com/user/my-project
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: support@mira.dev
+    name: API Support
+  description: Auto-containerization platform API for building and deploying applications
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: MIRA API
+  version: "1.0"
+paths:
+  /auth/github/callback:
+    get:
+      consumes:
+      - application/json
+      description: Handles the callback from GitHub OAuth and sets authentication
+        cookie
+      parameters:
+      - description: OAuth authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to application
+          schema:
+            type: string
+        "400":
+          description: Missing authorization code
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: OAuth exchange failed
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: GitHub OAuth callback
+      tags:
+      - auth
+  /auth/github/login:
+    get:
+      consumes:
+      - application/json
+      description: Redirects to GitHub OAuth authorization page
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to GitHub OAuth
+          schema:
+            type: string
+      summary: GitHub OAuth login
+      tags:
+      - auth
+  /auth/gitlab/callback:
+    get:
+      consumes:
+      - application/json
+      description: Handles the callback from GitLab OAuth and sets authentication
+        cookie
+      parameters:
+      - description: OAuth authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to application
+          schema:
+            type: string
+        "400":
+          description: Missing authorization code
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: OAuth exchange failed
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: GitLab OAuth callback
+      tags:
+      - auth
+  /auth/gitlab/login:
+    get:
+      consumes:
+      - application/json
+      description: Redirects to GitLab OAuth authorization page
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to GitLab OAuth
+          schema:
+            type: string
+      summary: GitLab OAuth login
+      tags:
+      - auth
+  /images/containerize:
+    post:
+      consumes:
+      - application/json
+      - multipart/form-data
+      description: Converts source code from Git repository or uploaded file into
+        a Docker image and deploys to Crane Cloud
+      parameters:
+      - description: Build configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenerateImageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Build started successfully
+          schema:
+            $ref: '#/definitions/models.BuildResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Containerize source code
+      tags:
+      - images
+  /images/detect:
+    post:
+      consumes:
+      - application/json
+      description: Analyzes package.json and other configuration files to detect the
+        technology stack
+      parameters:
+      - description: Repository URL
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detected frameworks and technologies
+          schema:
+            $ref: '#/definitions/models.FrameworkDetectionResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Detect framework from repository
+      tags:
+      - images
+  /user/github/repos:
+    get:
+      consumes:
+      - application/json
+      description: Fetches repositories for the authenticated GitHub user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of repositories
+          schema:
+            items:
+              $ref: '#/definitions/models.GitHubRepository'
+            type: array
+        "401":
+          description: Unauthorized - no access token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: GitHub API request failed
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get GitHub repositories
+      tags:
+      - user
+  /user/gitlab/repos:
+    get:
+      consumes:
+      - application/json
+      description: Fetches repositories for the authenticated GitLab user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of repositories
+          schema:
+            items:
+              $ref: '#/definitions/models.GitLabProject'
+            type: array
+        "401":
+          description: Unauthorized - no access token
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: GitLab API request failed
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get GitLab repositories
+      tags:
+      - user
+schemes:
+- http
+- https
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,7 +1,7 @@
 package main
 
 import (
-	cli "github.com/crane-cloud/mira-new/cmd/cli"
+	cli "mira/cmd/cli"
 )
 
 func main() {

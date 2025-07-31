@@ -5,48 +5,52 @@ import (
 	"log"
 	"os"
 
+	common "mira/cmd/common"
+
 	"github.com/buildpacks/pack/pkg/client"
 	"github.com/buildpacks/pack/pkg/image"
 	"github.com/buildpacks/pack/pkg/logging"
-	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
 )
 
 // CreateBuildpacksImage creates a buildpacks image
-func CreateBuildpacksImage(app *ImageBuild, logger *dLogger.DriverLogger) error {
+func CreateBuildpacksImage(app *ImageBuild, logger *common.NATSLogger) error {
 
 	if app.Spec.Source.Type == "git" {
-		logger.Log(map[string]string{}, "Fetching Codebase from Git Repository\r\n")
+		logger.InfoWithStep("clone", "Fetching Codebase from Git Repository")
 		err := CloneGitRepo(app)
 		if err != nil {
 			log.Printf("failed to clone git repository: %v", err)
+			logger.ErrorWithStep("clone", "Failed to clone git repository")
 			return err
 		}
 	} else if app.Spec.Source.Type == "file" {
-		logger.Log(map[string]string{}, "Downloading File from URL")
+		logger.InfoWithStep("download", "Downloading File from URL")
 		err := HandleFileSource(app)
 		if err != nil {
 			log.Printf("failed to download file: %v", err)
+			logger.ErrorWithStep("download", "Failed to download file")
 			return err
 		}
 	}
 
-	logger.Log(map[string]string{}, "Image Build Process Started\r\n")
+	logger.InfoWithStep("build", "Image Build Process Started")
 
 	err := BuildImage(app, logger)
 	if err != nil {
 		log.Printf("failed to build image: %v", err)
+		logger.ErrorWithStep("build", "Image build failed")
 		return err
 	}
-	logger.Log(map[string]string{}, "\r\nSUCCESS: Image built successfully: "+app.Name+"\r\n")
+	logger.InfoWithStep("build", "SUCCESS: Image built successfully: "+app.Name)
 
 	return nil
 }
 
-func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
+func BuildImage(app *ImageBuild, natsLogger *common.NATSLogger) error {
 
-	logger := logging.NewLogWithWriters(driverLogger, driverLogger)
+	logger := logging.NewLogWithWriters(natsLogger, natsLogger)
 
-	cli, err := client.NewClient(
+	cliClient, err := client.NewClient(
 		client.WithLogger(logger),
 	)
 	if err != nil {
@@ -112,7 +116,7 @@ func BuildImage(app *ImageBuild, driverLogger *dLogger.DriverLogger) error {
 		Buildpacks: buildpacks,
 	}
 
-	if err := cli.Build(context.Background(), buildOpts); err != nil {
+	if err := cliClient.Build(context.Background(), buildOpts); err != nil {
 		log.Printf("failed to build image: %v", err)
 		return err
 	}

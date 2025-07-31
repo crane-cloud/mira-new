@@ -8,11 +8,14 @@ import (
 	"regexp"
 	"strings"
 
+	_ "mira/cmd/api/models"
+
 	"github.com/gofiber/fiber/v2"
 )
 
+// RequestBody represents the request body for framework detection
 type RequestBody struct {
-	RepoURL string `json:"repo_url"`
+	RepoURL string `json:"repo_url" example:"https://github.com/user/repo" validate:"required" doc:"GitHub repository URL"`
 }
 
 type GitHubContentResponse struct {
@@ -40,6 +43,17 @@ var detectionMap = map[string]interface{}{
 	"next.config.js":    "Next.js",
 }
 
+// DetectFramework analyzes a GitHub repository to detect frameworks and technologies
+// @Summary Detect framework from repository
+// @Description Analyzes package.json and other configuration files to detect the technology stack
+// @Tags images
+// @Accept json
+// @Produce json
+// @Param request body RequestBody true "Repository URL"
+// @Success 200 {object} models.FrameworkDetectionResponse "Detected frameworks and technologies"
+// @Failure 400 {object} models.ErrorResponse "Invalid request"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
+// @Router /images/detect [post]
 func DetectFramework(c *fiber.Ctx) error {
 	fmt.Println("Got Request")
 	var req RequestBody
@@ -98,11 +112,13 @@ func fetchFileContent(owner, repo, filepath string) string {
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
 	if err != nil || resp.StatusCode != 200 {
 		return ""
 	}
+	fmt.Println("Response:", resp)
+	fmt.Println("Error:", err)
 	defer resp.Body.Close()
 
 	var data GitHubContentResponse

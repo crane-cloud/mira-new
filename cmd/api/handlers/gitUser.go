@@ -1,11 +1,25 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"io"
 	"net/http"
+
+	_ "mira/cmd/api/models"
+
+	"github.com/gofiber/fiber/v2"
 )
 
+// GetGithubRepositories fetches user's GitHub repositories
+// @Summary Get GitHub repositories
+// @Description Fetches repositories for the authenticated GitHub user
+// @Tags user
+// @Accept json
+// @Produce json
+// @Success 200 {object} []models.GitHubRepository "List of repositories"
+// @Failure 401 {object} models.ErrorResponse "Unauthorized - no access token"
+// @Failure 500 {object} models.ErrorResponse "GitHub API request failed"
+// @Router /user/github/repos [get]
+// @Security ApiKeyAuth
 func GetGithubRepositories(c *fiber.Ctx) error {
 	accessToken := c.Cookies("access_token")
 	if accessToken == "" {
@@ -31,6 +45,17 @@ func GetGithubRepositories(c *fiber.Ctx) error {
 	return c.Status(resp.StatusCode).Send(body)
 }
 
+// GetGitlabRepositories fetches user's GitLab repositories
+// @Summary Get GitLab repositories
+// @Description Fetches repositories for the authenticated GitLab user
+// @Tags user
+// @Accept json
+// @Produce json
+// @Success 200 {object} []models.GitLabProject "List of repositories"
+// @Failure 401 {object} models.ErrorResponse "Unauthorized - no access token"
+// @Failure 500 {object} models.ErrorResponse "GitLab API request failed"
+// @Router /user/gitlab/repos [get]
+// @Security ApiKeyAuth
 func GetGitlabRepositories(c *fiber.Ctx) error {
 	accessToken := c.Cookies("gitlab_access_token")
 	if accessToken == "" {

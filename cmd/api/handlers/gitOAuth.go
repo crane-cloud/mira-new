@@ -2,24 +2,54 @@ package handlers
 
 import (
 	"context"
-	"github.com/crane-cloud/mira-new/cmd/config"
+	"log"
+
+	_ "mira/cmd/api/models"
+	"mira/cmd/config"
+
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/oauth2"
-	"log"
 )
 
+// GitHubLogin initiates GitHub OAuth login flow
+// @Summary GitHub OAuth login
+// @Description Redirects to GitHub OAuth authorization page
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Success 302 {string} string "Redirect to GitHub OAuth"
+// @Router /auth/github/login [get]
 func GitHubLogin(c *fiber.Ctx) error {
 	oauthConf := config.GitHubOAuthConfig()
 	url := oauthConf.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	return c.Redirect(url)
 }
 
+// GitLabLogin initiates GitLab OAuth login flow
+// @Summary GitLab OAuth login
+// @Description Redirects to GitLab OAuth authorization page
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Success 302 {string} string "Redirect to GitLab OAuth"
+// @Router /auth/gitlab/login [get]
 func GitLabLogin(c *fiber.Ctx) error {
 	oauthConf := config.GitLabOAuthConfig()
 	url := oauthConf.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	return c.Redirect(url)
 }
 
+// GitHubCallback handles GitHub OAuth callback
+// @Summary GitHub OAuth callback
+// @Description Handles the callback from GitHub OAuth and sets authentication cookie
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param code query string true "OAuth authorization code"
+// @Success 302 {string} string "Redirect to application"
+// @Failure 400 {object} models.ErrorResponse "Missing authorization code"
+// @Failure 500 {object} models.ErrorResponse "OAuth exchange failed"
+// @Router /auth/github/callback [get]
 func GitHubCallback(c *fiber.Ctx) error {
 	oauthConf := config.GitHubOAuthConfig()
 	code := c.Query("code")
@@ -44,6 +74,17 @@ func GitHubCallback(c *fiber.Ctx) error {
 	return c.Redirect("")
 }
 
+// GitLabCallback handles GitLab OAuth callback
+// @Summary GitLab OAuth callback
+// @Description Handles the callback from GitLab OAuth and sets authentication cookie
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param code query string true "OAuth authorization code"
+// @Success 302 {string} string "Redirect to application"
+// @Failure 400 {object} models.ErrorResponse "Missing authorization code"
+// @Failure 500 {object} models.ErrorResponse "OAuth exchange failed"
+// @Router /auth/gitlab/callback [get]
 func GitLabCallback(c *fiber.Ctx) error {
 	oauthConf := config.GitLabOAuthConfig()
 	code := c.Query("code")

@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# Build artifacts
+builds/
+mira
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs
+logs/
+*.log
+
+# Development files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies (will be downloaded in container)
+vendor/
+
+# Test files
+*_test.go
+coverage.out
+coverage.html
+
+# Docker files (not needed in context)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Scripts and configs that aren't needed in build
+scripts/
+Makefile
+
+# Uploads (runtime directory)
+uploads/
+
+# Development artifacts
+.air.toml
+tmp/
