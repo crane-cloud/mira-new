@@ -3,3 +3,7 @@ build/
 uploads/
 appdata/
 .idea
+builds/
+logs/
+mira
+tmp/

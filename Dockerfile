@@ -1,44 +1,72 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build the Go application
-FROM golang:1.23.5 AS builder
+FROM golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
 
 # Set the working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum
+# Copy go.mod and go.sum first for better layer caching
 COPY go.mod go.sum ./
 
 # Download dependencies
-RUN go mod download
+RUN go mod download && go mod verify
+
+# Install Air
+RUN go install github.com/air-verse/air@latest
 
 # Copy the source code
 COPY . .
 
-# Build the Go binary with subcommands (image-builder, api-server)
-RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/mira ./main.go
+# Build the Go binary with optimizations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o /bin/mira ./main.go
 
-# Stage 2: Create the final image
-FROM ubuntu:latest
+# For development: keep Go available for live reload
+FROM golang:1.24-alpine AS development
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-  ca-certificates \
-  git \
-  curl \
-  docker.io \
-  && rm -rf /var/lib/apt/lists/*
+# Add metadata labels
+LABEL maintainer="mira-team" \
+      version="1.0" \
+      description="MIRA - Container Image Builder (Development)"
 
+# Install runtime dependencies 
+RUN apk add --no-cache \
+    ca-certificates \
+    git \
+    curl \
+    docker \
+    docker-cli \
+    && rm -rf /var/cache/apk/*
+
+# Add user to docker group for socket access
+RUN addgroup -g 999 docker || true
+RUN adduser -D -u 1000 appuser || true  
+RUN adduser appuser docker || true
 
 # Set working directory
 WORKDIR /app
 
-# Copy the built binary
-COPY --from=builder /bin/mira /usr/local/bin/mira
-
-# Make binary executable
-RUN chmod +x /usr/local/bin/mira
+# Copy Air binary from builder
+COPY --from=builder /go/bin/air /usr/local/bin/air
 
 
-# Default command (can be overridden at runtime)
-ENTRYPOINT ["mira"]
+# Copy scripts from builder stage
+# COPY --from=builder /app/scripts/start-imagebuilder.sh ./scripts/start-imagebuilder.sh
+
+# Make scripts executable
+# RUN chmod +x ./scripts/start-imagebuilder.sh
+
+RUN mkdir -p /app/uploads /app/logs /app/builds /app/tmp /usr/local/crane
+
+EXPOSE 3000
+
+# Switch to non-root user (commented out for Docker socket access)
+# USER appuser
+
+CMD ["air"]
