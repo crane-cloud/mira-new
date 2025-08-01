@@ -57,8 +57,9 @@ func (b *BuildService) prepareBuildOptions(buildSpec *models.BuildSpec, sourcePa
 
 	// Base environment variables
 	env := map[string]string{
-		"CNB_USER_ID":  "0", // Root user ID
-		"CNB_GROUP_ID": "0", // Root group ID
+		// Remove root user settings to avoid permission conflicts
+		// "CNB_USER_ID":  "0", // Root user ID
+		// "CNB_GROUP_ID": "0", // Root group ID
 	}
 
 	// Add custom environment variables
@@ -75,8 +76,15 @@ func (b *BuildService) prepareBuildOptions(buildSpec *models.BuildSpec, sourcePa
 	if !buildSpec.Spec.SSR {
 		// Static site configuration
 		env["BP_WEB_SERVER"] = "httpd"
+		// env["BP_WEB_SERVER"] = "nginx"
+		env["BP_WEB_SERVER_FORCE_HTTPS_REDIRECT"] = "false"
 		env["BP_NODE_RUN_SCRIPTS"] = buildSpec.Spec.BuildCommand
 		env["BP_WEB_SERVER_ROOT"] = buildSpec.Spec.OutputDir
+		// Enable SPA support for React apps
+		env["BP_WEB_SERVER_ENABLE_PUSH_STATE"] = "true"
+		// Use custom nginx configuration
+		// env["BP_NGINX_CONF_LOCATION"] = "scripts/nginx.conf"
+		env["NODE_ENV"] = "production"
 		buildpacks = append(buildpacks, "paketo-buildpacks/web-servers")
 		builder = "paketobuildpacks/builder-jammy-base"
 	} else {
