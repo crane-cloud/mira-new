@@ -1,91 +1,55 @@
 package imagebuilder
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
 	"log"
-	"os"
 
-	c "github.com/open-ug/conveyor/pkg/client"
-	runtime "github.com/open-ug/conveyor/pkg/driver-runtime"
-	dLogger "github.com/open-ug/conveyor/pkg/driver-runtime/log"
+	common "mira/cmd/common"
+	"mira/cmd/image-builder/handlers"
 )
 
-// Listen for messages from the runtime
-func Reconcile(payload string, event string, driverName string, logger *dLogger.DriverLogger) error {
-
-	log.SetFlags(log.Ldate | log.Ltime)
-	log.Printf("MIRA Reconciling: %v", payload)
-
-	if event == "create" {
-		var imageSpec ImageBuild
-		err := json.Unmarshal([]byte(payload), &imageSpec)
-		if err != nil {
-			return fmt.Errorf("error unmarshalling application message: %v", err)
-		}
-
-		err = CreateBuildpacksImage(&imageSpec, logger)
-		if err != nil {
-			log.Printf("Error creating image from git repository: %v", err)
-			return fmt.Errorf("error creating image from git repository: %v", err)
-		}
-
-		var DOCKER_USERNAME = os.Getenv("DOCKERHUB_USERNAME")
-
-		// Deploy to Crane Cloud
-		crane_cloud_app := &CraneCloudData{
-			Image:        DOCKER_USERNAME + "/" + imageSpec.Spec.ProjectID + imageSpec.Name,
-			Name:         imageSpec.Name,
-			ProjectID:    imageSpec.Spec.ProjectID,
-			PrivateImage: false,
-			Replicas:     1,
-			Port:         8080,
-			EnvVars: map[string]string{
-				"PORT": "8080",
-			},
-		}
-
-		logger.Log(map[string]string{}, "\r\nDeploying image to Crane Cloud: "+imageSpec.Name+"\r\n")
-
-		err = crane_cloud_app.DeployToCraneCloud(imageSpec.Spec.Token)
-		if err != nil {
-			logger.Log(map[string]string{}, "Error deploying image to Crane Cloud")
-			return fmt.Errorf("error deploying image to Crane Cloud: %v", err)
-		}
-		// Log the successful creation of the image
-		logger.Log(map[string]string{}, "\r\nSUCCESSFULLY DEPLOYED IMAGE TO CRANE CLOUD: "+crane_cloud_app.Image+"\r\n")
-
-		log.Printf("Image created successfully: %s", imageSpec.Name)
-
-	}
-
-	return nil
+// ProcessBuildRequest handles a build request received from NATS
+// This function now delegates to the structured handler
+func ProcessBuildRequest(buildReq *common.BuildRequest, natsClient *common.NATSClient) error {
+	buildHandler := handlers.NewBuildHandler(natsClient)
+	return buildHandler.ProcessBuildRequest(buildReq)
 }
 
+// Listen starts the image builder service and listens for build requests
 func Listen() {
-	client := c.NewClient()
-	_, err := client.CreateOrUpdateResourceDefinition(context.Background(), ImageBuilder)
+	// Create NATS client
+	natsClient, err := common.NewNATSClient()
+	if err != nil {
+		log.Printf("Error creating NATS client: %v", err)
+		return
+	}
+	defer natsClient.Close()
+
+	log.Printf("MIRA Image Builder started, listening for build requests...")
+
+	// Create build handler
+	buildHandler := handlers.NewBuildHandler(natsClient)
+
+	// Subscribe to build requests
+	_, err = natsClient.SubscribeToBuildRequests(func(buildReq *common.BuildRequest) {
+		log.Printf("Received build request: %s", buildReq.ID)
+
+		// Process build request in a goroutine to handle multiple requests concurrently
+		go func() {
+			err := buildHandler.ProcessBuildRequest(buildReq)
+			if err != nil {
+				log.Printf("Build request %s failed: %v", buildReq.ID, err)
+			} else {
+				log.Printf("Build request %s completed successfully", buildReq.ID)
+			}
+		}()
+	})
 
 	if err != nil {
-		fmt.Println("Error creating or updating resource definition: ", err)
-	}
-
-	driver := &runtime.Driver{
-		Reconcile: Reconcile,
-		Name:      "mira",
-		Resources: []string{"image-builder"},
-	}
-
-	driverManager, err := runtime.NewDriverManager(driver, []string{"*"})
-	if err != nil {
-		fmt.Println("Error creating driver manager: ", err)
+		log.Printf("Error subscribing to build requests: %v", err)
 		return
 	}
 
-	err = driverManager.Run()
-	if err != nil {
-		fmt.Println("Error running driver manager: ", err)
-	}
-
+	// Keep the service running
+	log.Printf("Image builder is ready to process build requests")
+	select {} // Block forever
 }

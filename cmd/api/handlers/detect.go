@@ -1,122 +1,199 @@
 package handlers
 
 import (
-	"encoding/base64"
-	"encoding/json"
+	"context"
 	"fmt"
+	"log"
 	"net/http"
-	"regexp"
-	"strings"
+	"time"
+
+	"mira/cmd/api/models"
+	"mira/cmd/config"
+	"mira/cmd/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-type RequestBody struct {
-	RepoURL string `json:"repo_url"`
+// DetectFrameworkRequest represents the request body for framework detection
+type DetectFrameworkRequest struct {
+	RepoURL string `json:"repo_url" example:"https://github.com/user/repo" validate:"required"`
 }
 
-type GitHubContentResponse struct {
-	Content  string `json:"content"`
-	Encoding string `json:"encoding"`
-}
+const (
+	// Timeouts and limits
+	requestTimeoutSeconds = 30
 
-var detectionMap = map[string]interface{}{
-	"package.json": map[string]string{
-		"react":         "React",
-		"next":          "Next.js",
-		"vue":           "Vue.js",
-		"nuxt":          "Nuxt.js",
-		"svelte":        "Svelte",
-		"@angular/core": "Angular",
-		"vite":          "Vite",
-		"webpack":       "Webpack",
-		"parcel":        "Parcel",
+	// Rate limiting
+	maxRequestsPerMinute = 60
+)
+
+// HTTP client with proper configuration
+var httpClient = &http.Client{
+	Timeout: requestTimeoutSeconds * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: false,
 	},
-	"vite.config.js":    "Vite",
-	"webpack.config.js": "Webpack",
-	"angular.json":      "Angular",
-	"svelte.config.js":  "Svelte",
-	"nuxt.config.js":    "Nuxt.js",
-	"next.config.js":    "Next.js",
 }
 
+// DetectFramework analyzes a GitHub repository to detect JavaScript frameworks
+// @Summary Detect JavaScript framework from repository
+// @Description Analyzes package.json and configuration files to detect JavaScript frameworks
+// @Tags images
+// @Accept json
+// @Produce json
+// @Param request body DetectFrameworkRequest true "Repository URL"
+// @Success 200 {object} models.FrameworkDetectionResponse "Detected JavaScript frameworks"
+// @Failure 400 {object} models.ErrorResponse "Invalid request or not a GitHub repository"
+// @Failure 404 {object} models.ErrorResponse "Repository not found"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
+// @Router /images/detect [post]
 func DetectFramework(c *fiber.Ctx) error {
-	fmt.Println("Got Request")
-	var req RequestBody
+	// Parse and validate request
+	var req DetectFrameworkRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		log.Printf("Error parsing request body: %v", err)
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error: "Invalid request body format",
+		})
 	}
 
-	owner, repo := parseGitHubURL(req.RepoURL)
-	if owner == "" || repo == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid GitHub URL"})
+	// Validate and parse repository URL
+	owner, repo, err := utils.ParseRepositoryURL(req.RepoURL)
+	if err != nil {
+		log.Printf("Error parsing repository URL %s: %v", req.RepoURL, err)
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error: fmt.Sprintf("Invalid repository URL: %v", err),
+		})
 	}
 
-	detected := make(map[string]bool)
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeoutSeconds*time.Second)
+	defer cancel()
 
-	for file, indicators := range detectionMap {
-		content := fetchFileContent(owner, repo, file)
-		if content == "" {
-			continue
+	// First, check if repository exists and is accessible
+	repoExists, err := checkRepositoryExists(ctx, owner, repo)
+	if err != nil {
+		log.Printf("Error checking repository %s/%s: %v", owner, repo, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error: "Failed to check repository",
+		})
+	}
+
+	if !repoExists {
+		log.Printf("Repository not found: %s/%s", owner, repo)
+		return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
+			Error: "Repository not found. Please check the URL and ensure the repository exists.",
+		})
+	}
+
+	// Clone repository to directory
+	repoDir, cleanup, err := utils.CloneRepository(ctx, owner, repo)
+	if err != nil {
+		log.Printf("Error cloning repository %s/%s: %v", owner, repo, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error: "Failed to clone repository for analysis",
+		})
+	}
+	// Ensure cleanup happens regardless of success or failure
+	defer cleanup()
+
+	// Check if it's a JavaScript project
+	isJSProject, err := utils.IsJavaScriptProjectLocal(repoDir)
+	if err != nil {
+		log.Printf("Error checking if %s/%s is a JS project: %v", owner, repo, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error: "Failed to analyze repository",
+		})
+	}
+
+	if !isJSProject {
+		log.Printf("Repository %s/%s is not a JavaScript project", owner, repo)
+		packageManager := utils.DetectPackageManager(repoDir)
+		return c.Status(fiber.StatusOK).JSON(map[string]interface{}{
+			"message":    "This repository does not appear to be a JavaScript application",
+			"frameworks": map[string]interface{}{},
+			"build_dir":  "build",
+			"command":    packageManager + " build",
+		})
+	}
+
+	// Detect JavaScript frameworks from local clone
+	detectedFrameworks, err := utils.DetectJavaScriptFrameworksLocal(repoDir)
+	if err != nil {
+		log.Printf("Error detecting JS frameworks for %s/%s: %v", owner, repo, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error: "Failed to analyze JavaScript frameworks",
+		})
+	}
+
+	// Determine build settings based on detected frameworks and package manager
+	primaryCommand, primaryBuildDir := utils.DetermineBuildInfo(detectedFrameworks, repoDir)
+
+	// Prepare response
+	frameworksMap := make(map[string]interface{})
+	for _, framework := range detectedFrameworks {
+		frameworkData := map[string]interface{}{
+			"confidence":  framework.Confidence,
+			"detected_in": framework.DetectedIn,
+			"version":     framework.Version,
+			"description": framework.Description,
 		}
 
-		switch v := indicators.(type) {
-		case string:
-			detected[v] = true
-		case map[string]string:
-			for keyword, framework := range v {
-				if strings.Contains(strings.ToLower(content), strings.ToLower(keyword)) {
-					detected[framework] = true
-				}
-			}
-		}
+		frameworksMap[framework.Name] = frameworkData
 	}
 
-	result := []string{}
-	for fw := range detected {
-		result = append(result, fw)
+	var message string
+	if len(detectedFrameworks) > 0 {
+		message = "JavaScript frameworks detected successfully"
+	} else {
+		message = "This appears to be a JavaScript project, but no specific frameworks were detected"
 	}
 
-	return c.JSON(fiber.Map{"detected": result})
+	response := map[string]interface{}{
+		"message":    message,
+		"frameworks": frameworksMap,
+		"build_dir":  primaryBuildDir,
+		"command":    primaryCommand,
+	}
+
+	log.Printf("Successfully detected %d JS frameworks for %s/%s", len(detectedFrameworks), owner, repo)
+	return c.JSON(response)
 }
 
-// Helper to parse GitHub repo URL
-func parseGitHubURL(url string) (string, string) {
-	fmt.Println("Pursing url")
-	re := regexp.MustCompile(`https://github.com/([^/]+)/([^/]+)`)
-	matches := re.FindStringSubmatch(url)
-	if len(matches) == 3 {
-		return matches[1], matches[2]
-	}
-	return "", ""
-}
+// checkRepositoryExists verifies if the GitHub repository exists and is accessible
+func checkRepositoryExists(ctx context.Context, owner, repo string) (bool, error) {
+	apiURL := fmt.Sprintf("%s/repos/%s/%s", config.GITHUB_API_URL, owner, repo)
 
-// Fetch file content from GitHub using GitHub API
-func fetchFileContent(owner, repo, filepath string) string {
-	fmt.Println("fetching file content")
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, filepath)
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create request: %v", err)
+	}
+
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "MIRA-Framework-Detection/1.0")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		return ""
+	// Add authentication if token is available
+	if config.GITHUB_ACCESS_TOKEN != "" {
+		req.Header.Set("Authorization", "Bearer "+config.GITHUB_ACCESS_TOKEN)
+	}
+
+	resp, err := httpClient.Do(req)
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check repository: %v", err)
 	}
 	defer resp.Body.Close()
 
-	var data GitHubContentResponse
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return ""
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	case http.StatusForbidden:
+		return false, fmt.Errorf("access forbidden - repository may be private")
+	default:
+		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-
-	if data.Encoding == "base64" {
-		decoded, err := base64.StdEncoding.DecodeString(data.Content)
-		if err != nil {
-			return ""
-		}
-		return string(decoded)
-	}
-
-	return ""
 }

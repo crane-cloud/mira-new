@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mira Build Logs Viewer</title>
+    <style>
+      body {
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        padding: 20px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        color: #569cd6;
+        text-align: center;
+      }
+
+      .input-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #2d2d30;
+        border-radius: 5px;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        font-size: 14px;
+        border: 1px solid #3e3e42;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        border-radius: 3px;
+      }
+
+      button {
+        background: #0e639c;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 3px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+
+      button:hover {
+        background: #1177bb;
+      }
+
+      button:disabled {
+        background: #666;
+        cursor: not-allowed;
+      }
+
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 3px;
+        font-weight: bold;
+      }
+
+      .status.connected {
+        background: #0f5132;
+        color: #d1e7dd;
+        border: 1px solid #0a3622;
+      }
+
+      .status.connecting {
+        background: #664d03;
+        color: #fff3cd;
+        border: 1px solid #66512c;
+      }
+
+      .status.error {
+        background: #842029;
+        color: #f8d7da;
+        border: 1px solid #721c24;
+      }
+
+      #logs {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #3e3e42;
+        background: #1e1e1e;
+        white-space: pre-wrap;
+        max-height: 500px;
+        overflow-y: auto;
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .log-entry {
+        margin: 2px 0;
+        padding: 2px;
+      }
+
+      .log-info {
+        color: #4fc3f7;
+      }
+
+      .log-error {
+        color: #f44336;
+        font-weight: bold;
+      }
+
+      .log-debug {
+        color: #9e9e9e;
+      }
+
+      .log-timestamp {
+        color: #66bb6a;
+      }
+
+      .log-step {
+        color: #ff9800;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>🚀 Mira Build Logs Viewer</h1>
+
+      <div class="input-section">
+        <label for="buildId">Build ID:</label>
+        <input
+          type="text"
+          id="buildId"
+          placeholder="Enter your build ID (e.g., 1d3abe0a-1315-4dbf-9a61-e2b98bad7958)"
+        />
+        <button id="connectBtn" onclick="connectToLogs()">
+          Connect to Logs
+        </button>
+        <button id="disconnectBtn" onclick="disconnectFromLogs()" disabled>
+          Disconnect
+        </button>
+        <button id="clearBtn" onclick="clearLogs()">Clear Logs</button>
+      </div>
+
+      <div id="status" class="status" style="display: none"></div>
+
+      <div id="logs">
+        Enter a build ID above and click "Connect to Logs" to start viewing
+        real-time logs...
+      </div>
+    </div>
+
+    <script>
+      let socket = null;
+      let isConnected = false;
+
+      const buildIdInput = document.getElementById("buildId");
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const logs = document.getElementById("logs");
+      const status = document.getElementById("status");
+
+      // Auto-fill build ID from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const buildIdFromUrl = urlParams.get("buildId");
+      if (buildIdFromUrl) {
+        buildIdInput.value = buildIdFromUrl;
+      }
+
+      function showStatus(message, type) {
+        status.textContent = message;
+        status.className = `status ${type}`;
+        status.style.display = "block";
+      }
+
+      function hideStatus() {
+        status.style.display = "none";
+      }
+
+      function connectToLogs() {
+        const buildId = buildIdInput.value.trim();
+        if (!buildId) {
+          alert("Please enter a build ID");
+          return;
+        }
+
+        if (isConnected) {
+          disconnectFromLogs();
+        }
+
+        const wsUrl = `ws://localhost:3000/api/logs/${buildId}`;
+        showStatus(`Connecting to ${wsUrl}...`, "connecting");
+
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          isConnected = true;
+          showStatus(`✅ Connected to build ${buildId}`, "connected");
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          buildIdInput.disabled = true;
+
+          appendLog(`🔗 Connected to logs for build: ${buildId}`, "info");
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const logData = JSON.parse(event.data);
+
+            if (logData.error) {
+              appendLog(`❌ Error: ${logData.error}`, "error");
+              return;
+            }
+
+            if (logData.message && !logData.level) {
+              // Connection confirmation or other system messages
+              appendLog(`ℹ️  ${logData.message}`, "info");
+              return;
+            }
+
+            // Format structured log messages
+            if (logData.level && logData.message) {
+              const timestamp = logData.timestamp
+                ? new Date(logData.timestamp).toLocaleTimeString()
+                : "";
+              const step = logData.step ? `[${logData.step}]` : "";
+              const level = logData.level.toLowerCase();
+
+              let logLine = "";
+              if (timestamp) logLine += `[${timestamp}] `;
+              if (step) logLine += `${step} `;
+              logLine += logData.message;
+
+              appendLog(logLine, level);
+            } else {
+              // Fallback for any other messages
+              appendLog(event.data, "info");
+            }
+          } catch (e) {
+            // If it's not JSON, just display as raw text
+            appendLog(event.data, "info");
+          }
+        };
+
+        socket.onerror = (error) => {
+          showStatus("❌ WebSocket connection error", "error");
+          appendLog(`❌ WebSocket error: ${error}`, "error");
+          console.error("WebSocket error:", error);
+        };
+
+        socket.onclose = (event) => {
+          isConnected = false;
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          buildIdInput.disabled = false;
+
+          if (event.wasClean) {
+            showStatus("✅ Connection closed cleanly", "connected");
+            appendLog("🔚 WebSocket connection closed", "info");
+          } else {
+            showStatus("❌ Connection lost unexpectedly", "error");
+            appendLog(
+              `❌ WebSocket connection lost (Code: ${event.code})`,
+              "error"
+            );
+          }
+        };
+      }
+
+      function disconnectFromLogs() {
+        if (socket) {
+          socket.close();
+          socket = null;
+        }
+      }
+
+      function clearLogs() {
+        logs.textContent = "";
+      }
+
+      function appendLog(message, level = "info") {
+        const logEntry = document.createElement("div");
+        logEntry.className = `log-entry log-${level}`;
+        logEntry.textContent = message;
+
+        logs.appendChild(logEntry);
+        logs.scrollTop = logs.scrollHeight;
+      }
+
+      // Handle Enter key in build ID input
+      buildIdInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          connectToLogs();
+        }
+      });
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", () => {
+        if (socket) {
+          socket.close();
+        }
+      });
+    </script>
+  </body>
+</html>

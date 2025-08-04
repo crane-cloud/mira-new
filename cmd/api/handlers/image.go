@@ -1,152 +1,136 @@
 package handlers
 
 import (
-	"context"
-	"strings"
-
 	"fmt"
+	"time"
 
-	types "github.com/crane-cloud/mira-new/cmd/image-builder"
+	_ "mira/cmd/api/models"
+	"mira/cmd/api/schemas"
+	common "mira/cmd/common"
 
-	utils "github.com/crane-cloud/mira-new/internals/utils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/open-ug/conveyor/pkg/client"
-	cTypes "github.com/open-ug/conveyor/pkg/types"
+	"github.com/google/uuid"
 )
 
 type ImageHandler struct {
-	client *client.Client
+	natsClient *common.NATSClient
 }
 
-func NewImageHandler(cl *client.Client) *ImageHandler {
-	if cl == nil {
-		cl = client.NewClient()
+func NewImageHandler(natsClient *common.NATSClient) *ImageHandler {
+	if natsClient == nil {
+		var err error
+		natsClient, err = common.NewNATSClient()
+		if err != nil {
+			fmt.Printf("Failed to create NATS client: %v\n", err)
+			return nil
+		}
 	}
 	return &ImageHandler{
-		client: cl,
+		natsClient: natsClient,
 	}
 }
 
-func toWebSocketURL(apiURL string) string {
-	if strings.HasPrefix(apiURL, "https://") {
-		return strings.TrimPrefix(apiURL, "https://")
-	}
-	if strings.HasPrefix(apiURL, "http://") {
-		return strings.TrimPrefix(apiURL, "http://")
-	}
-	return apiURL // fallback, if it's already ws/wss
+func getWebSocketURL(host, buildID string) string {
+	return fmt.Sprintf("ws://%s/api/logs/%s", host, buildID)
+}
+func getLogsHTMLURL(host, buildID string) string {
+	return fmt.Sprintf("http://%s/git-logs.html?buildId=%s", host, buildID)
 }
 
+// GenerateImage containerizes source code into Docker images
+// @Summary Containerize source code
+// @Description Converts source code from Git repository into a Docker image and deploys to Crane Cloud
+// @Tags images
+// @Accept json
+// @Produce json
+// @Param request body schemas.GenerateImageRequest true "Build configuration"
+// @Success 200 {object} models.BuildResponse "Build started successfully"
+// @Failure 400 {object} models.ErrorResponse "Invalid request"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
+// @Router /images/containerize [post]
 func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
+	// Generate unique build ID
+	buildID := uuid.New().String()
 
-	// the request should be a multipart/form-data
-	form, err := c.MultipartForm()
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request format",
-		})
-	}
-	// get the fields from the form
-	name := form.Value["name"]
-	sourceType := form.Value["type"]
-	buildCmd := form.Value["build_command"]
-	outputDir := form.Value["output_directory"]
-	token := form.Value["token"]
+	var buildReq common.BuildRequest
+	buildReq.ID = buildID
+	buildReq.Timestamp = time.Now()
 
-	if len(name) == 0 || len(sourceType) == 0 || len(buildCmd) == 0 || len(outputDir) == 0 {
+	// Parse JSON request
+	var req schemas.GenerateImageRequest
+	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing required fields",
+			"error":   "Invalid JSON format",
+			"details": err.Error(),
 		})
 	}
 
-	if sourceType[0] != "git" && sourceType[0] != "file" {
+	// Comprehensive validation
+	if validationErrors := schemas.ValidateGenerateImageRequest(&req); len(validationErrors) > 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid source type",
+			"error":      "Validation failed",
+			"validation": validationErrors,
 		})
 	}
 
-	var app types.ImageBuild
-	app.Name = name[0]
-	app.Spec.BuildCommand = buildCmd[0]
-	app.Spec.OutputDir = outputDir[0]
-	app.Spec.ProjectID = form.Value["project"][0]
-	app.Spec.Token = token[0]
-	app.Spec.SSR = form.Value["ssr"][0] == "true"
-	app.Spec.Env = make(map[string]string)
-
-	// get the environment variables from the form
-	// The environment variables are expected to be in JSON format, e.g. {"key1": "value1", "key2": "value2"}
-	envVars := form.Value["env"]
-	if len(envVars) > 0 {
-		envMap, err := utils.ParseJSONToMap(envVars[0])
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid environment variables format",
-			})
-		}
-		app.Spec.Env = envMap
+	// Map JSON fields to build request structure
+	buildReq.Name = req.Name
+	buildReq.Spec.BuildCommand = req.BuildCommand
+	buildReq.Spec.OutputDir = req.OutputDirectory
+	buildReq.Spec.ProjectID = req.ProjectId
+	buildReq.Spec.AccessToken = req.AccessToken
+	buildReq.Spec.SSR = req.SSR
+	buildReq.Spec.Env = req.Env
+	if buildReq.Spec.Env == nil {
+		buildReq.Spec.Env = make(map[string]string)
 	}
 
-	// get the file from the form and check if it is a valid file. then save it to the server
-	if sourceType[0] == "file" {
-		file, err := c.FormFile("file")
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid file format",
-			})
-		}
+	// Set git repository as source
+	buildReq.Spec.Source.GitRepo.URL = req.Repo
+	buildReq.Spec.Source.Type = "git"
 
-		// Generate a unique name for the file
-		uniqueName := fmt.Sprintf("%s-%s-%s", utils.GenerateRandomString(6), app.Name, file.Filename)
+	// Get host for WebSocket URL first (before async operations)
+	host := string(c.Context().URI().Host())
+	if host == "" {
+		host = "localhost:3000"
+	}
 
-		// save the file to the server
-		err = c.SaveFile(file, "./uploads/"+uniqueName)
+	// Publish build request to NATS asynchronously for better response time
+	published := make(chan error, 1)
+
+	h.natsClient.PublishBuildRequestAsync(&buildReq,
+		func() {
+			// Success callback
+			published <- nil
+		},
+		func(err error) {
+			// Error callback
+			fmt.Printf("Failed to publish build request asynchronously: %v\n", err)
+			published <- err
+		},
+	)
+
+	// Wait for publish result with timeout (non-blocking for client)
+	select {
+	case err := <-published:
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to save file",
+				"error":   "Failed to queue build request",
+				"details": err.Error(),
 			})
 		}
-
-		// get server url protocol and host
-		serverURL := fmt.Sprintf("%s://%s", c.Protocol(), string(c.Context().URI().Host()))
-		app.Spec.Source.BlobFile.Source = serverURL + "/uploads/" + uniqueName
-		app.Spec.Source.Type = "file"
-	} else if sourceType[0] == "git" {
-		// get the git fields from the form
-		repo := form.Value["repo"]
-		//branch := form.Value["branch"]
-		//gitUsername := form.Value["gitusername"]
-		//gitPassword := form.Value["gitpassword"]
-		//if len(repo) == 0 || len(branch) == 0 {
-		//	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		//		"error": "Missing required fields",
-		//	})
-		//}
-		app.Spec.Source.GitRepo.URL = repo[0]
-		//app.Spec.Source.GitRepo.Branch = branch[0]
-		//app.Spec.Source.GitRepo.Username = gitUsername[0]
-		//app.Spec.Source.GitRepo.Password = gitPassword[0]
-		app.Spec.Source.Type = "git"
-	}
-
-	resp, err := h.client.CreateResource(context.Background(), &cTypes.Resource{
-		Name:     app.Name,
-		Resource: "image-builder",
-		Spec:     app.Spec,
-	})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create application",
-		})
+	case <-time.After(2 * time.Second):
+		// Don't wait too long, respond optimistically
+		fmt.Printf("Build request publish taking longer than expected for build %s\n", buildReq.ID)
 	}
 
 	return c.JSON(fiber.Map{
 		"message": "Image generation started",
 		"data": fiber.Map{
-			"name":   resp.Name,
-			"runid":  resp.RunID,
-			"wspath": toWebSocketURL(h.client.GetAPIURL()) + "/drivers/streams/logs/mira/" + resp.RunID,
+			"name":            buildReq.Name,
+			"build_id":        buildReq.ID,
+			"logs_socket_url": getWebSocketURL(host, buildReq.ID),
+			"logs_html_url":   getLogsHTMLURL(host, buildReq.ID),
 		},
 	})
-
 }

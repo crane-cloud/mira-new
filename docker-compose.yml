@@ -1,0 +1,110 @@
+services:
+  nats:
+    image: nats:latest
+    platform: linux/amd64
+    ports:
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+    networks:
+      - mira-network
+    command: [
+        "-js", # enable JetStream
+        "--store_dir",
+        "/data/js", # JetStream storage location
+        "-m",
+        "8222", # Enable monitoring on port 8222
+        "-V", # verbose logging for development
+      ]
+    volumes:
+      - nats-data:/data/js
+
+  # NATS monitoring/dashboard for development debugging
+  nats-exporter:
+    image: natsio/prometheus-nats-exporter:latest
+    depends_on:
+      - nats
+    ports:
+      - "7777:7777"
+    command:
+      ["-varz", "-connz", "-routez", "-subz", "-jsz=all", "http://nats:8222"]
+    networks:
+      - mira-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    depends_on:
+      - nats
+    ports:
+      - "3000:3000"
+    entrypoint: []
+    command: ["sh", "-c", "cd /app && air -- api-server --port 3000"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-testuser}
+      - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://api.cranecloud.io}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI}
+      - GITLAB_CLIENT_ID=${GITLAB_CLIENT_ID}
+      - GITLAB_CLIENT_SECRET=${GITLAB_CLIENT_SECRET}
+      - GITLAB_REDIRECT_URI=${GITLAB_REDIRECT_URI}
+      - FRONTEND_REDIRECT_URL=${FRONTEND_REDIRECT_URL}
+      - CGO_ENABLED=0
+    env_file:
+      - .env
+    networks:
+      - mira-network
+    volumes:
+      - .:/app
+      - go-cache:/go/pkg/mod
+    restart: unless-stopped
+
+  imagebuilder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    depends_on:
+      - nats
+      - api
+    entrypoint: []
+    command:
+      [
+        "sh",
+        "-c",
+        "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && air -- image-builder",
+      ]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://staging.api.cranecloud.io}
+      - CGO_ENABLED=0
+      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
+      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PACK_VOLUME_KEY=${PACK_VOLUME_KEY:-mira-pack-cache}
+    env_file:
+      - .env
+    networks:
+      - mira-network
+    volumes:
+      - .:/app
+      - go-cache:/go/pkg/mod
+      - pack-cache:/pack-cache
+      - docker-cache:/var/lib/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/local/crane:/usr/local/crane
+    restart: unless-stopped
+    privileged: true
+
+volumes:
+  nats-data:
+  go-cache:
+  pack-cache:
+  docker-cache:
+
+networks:
+  mira-network:
+    driver: bridge
