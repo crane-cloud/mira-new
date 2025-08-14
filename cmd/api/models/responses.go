@@ -52,6 +52,8 @@ type HealthResponse struct {
 // LogMessage represents a single log entry
 type LogMessage struct {
 	BuildID   string `json:"build_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ProjectID string `json:"project_id,omitempty" example:"proj-123"`
+	AppName   string `json:"app_name,omitempty" example:"my-app"`
 	Level     string `json:"level" example:"info"`
 	Message   string `json:"message" example:"Build started"`
 	Timestamp string `json:"timestamp" example:"2024-01-01T12:00:00Z"`

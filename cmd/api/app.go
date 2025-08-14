@@ -2,14 +2,19 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 
+	"mira/cmd/api/services"
 	common "mira/cmd/common"
+	"mira/cmd/config"
 	_ "mira/docs" // Import generated docs
 
-	"github.com/goccy/go-json"
+	gojson "github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/nats-io/nats.go"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
@@ -38,10 +43,21 @@ func StartServer(port string) {
 	}
 	defer natsClient.Close()
 
+	// Initialize MongoDB
+	mongoConfig := config.NewMongoDBConfig()
+	err = mongoConfig.Connect()
+	if err != nil {
+		log.Printf("Warning: Failed to connect to MongoDB: %v", err)
+		log.Printf("MongoDB features will be disabled")
+		mongoConfig = nil
+	} else {
+		defer mongoConfig.Disconnect()
+	}
+
 	app := fiber.New(fiber.Config{
 		AppName:     "MIRA API Server",
-		JSONEncoder: json.Marshal,
-		JSONDecoder: json.Unmarshal,
+		JSONEncoder: gojson.Marshal,
+		JSONDecoder: gojson.Unmarshal,
 	})
 
 	// Enable CORS
@@ -76,8 +92,48 @@ func StartServer(port string) {
 	app.Get("/api/docs/*", fiberSwagger.WrapHandler)
 
 	// Setup all API routes
-	SetupRoutes(app, natsClient)
+	SetupRoutes(app, natsClient, mongoConfig)
+
+	// Start MongoDB log subscriber if MongoDB is available
+	if mongoConfig != nil && mongoConfig.Client != nil {
+		mongoService := services.NewMongoLogService(mongoConfig)
+		startMongoDBLogSubscriber(natsClient, mongoService)
+	}
 
 	app.Listen(":" + port)
 	fmt.Println("Server started on port:", port)
+}
+
+// startMongoDBLogSubscriber starts listening to NATS logs and saving them to MongoDB
+func startMongoDBLogSubscriber(natsClient *common.NATSClient, mongoService *services.MongoLogService) {
+	// Subscribe to all log subjects
+	subject := "mira.logs.*"
+	_, err := natsClient.GetConnection().Subscribe(subject, func(msg *nats.Msg) {
+		var logMsg common.LogMessage
+		if err := json.Unmarshal(msg.Data, &logMsg); err != nil {
+			log.Printf("Failed to unmarshal log message: %v", err)
+			return
+		}
+
+		// Save to MongoDB
+		err := mongoService.SaveLog(
+			logMsg.BuildID,
+			logMsg.ProjectID,
+			logMsg.AppName,
+			logMsg.Level,
+			logMsg.Message,
+			logMsg.Step,
+			logMsg.Timestamp,
+		)
+		if err != nil {
+			log.Printf("Failed to save log to MongoDB: %v", err)
+		} else {
+			log.Printf("✅ Saved log to MongoDB for build %s: %s", logMsg.BuildID, logMsg.Message)
+		}
+	})
+	if err != nil {
+		log.Printf("Failed to subscribe to logs: %v", err)
+	} else {
+		log.Printf("Started MongoDB log subscriber on subject: %s", subject)
+	}
 }

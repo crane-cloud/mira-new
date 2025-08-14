@@ -10,16 +10,18 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// NATSLogger implements a logger that publishes logs to NATS for real-time streaming
-type NATSLogger struct {
-	nc      *nats.Conn
-	js      nats.JetStreamContext
-	buildID string
-	subject string
+// MongoNATSLogger implements a logger that publishes logs to NATS
+type MongoNATSLogger struct {
+	nc        *nats.Conn
+	js        nats.JetStreamContext
+	buildID   string
+	projectID string
+	appName   string
+	subject   string
 }
 
-// NewNATSLogger creates a new NATS-based logger
-func NewNATSLogger(nc *nats.Conn, buildID string) *NATSLogger {
+// NewMongoNATSLogger creates a new NATS logger
+func NewMongoNATSLogger(nc *nats.Conn, buildID, projectID, appName string) *MongoNATSLogger {
 	js, err := nc.JetStream()
 	if err != nil {
 		log.Printf("Failed to get JetStream context: %v", err)
@@ -49,51 +51,57 @@ func NewNATSLogger(nc *nats.Conn, buildID string) *NATSLogger {
 		}
 	}
 
-	return &NATSLogger{
-		nc:      nc,
-		buildID: buildID,
-		subject: BuildLogsSubject(buildID),
-		js:      js,
+	return &MongoNATSLogger{
+		nc:        nc,
+		buildID:   buildID,
+		projectID: projectID,
+		appName:   appName,
+		subject:   BuildLogsSubject(buildID),
+		js:        js,
 	}
 }
 
-// Log publishes a log message to NATS (compatible with Conveyor's logger interface)
-func (l *NATSLogger) Log(fields map[string]string, message string) {
+// Log publishes a log message to NATS and saves to MongoDB
+func (l *MongoNATSLogger) Log(fields map[string]string, message string) {
 	l.logWithLevel("info", message, "")
 }
 
 // Info logs an info level message
-func (l *NATSLogger) Info(message string) {
+func (l *MongoNATSLogger) Info(message string) {
 	l.logWithLevel("info", message, "")
 }
 
 // Error logs an error level message
-func (l *NATSLogger) Error(message string) {
+func (l *MongoNATSLogger) Error(message string) {
 	l.logWithLevel("error", message, "")
 }
 
 // Debug logs a debug level message
-func (l *NATSLogger) Debug(message string) {
+func (l *MongoNATSLogger) Debug(message string) {
 	l.logWithLevel("debug", message, "")
 }
 
 // InfoWithStep logs an info message with a specific build step
-func (l *NATSLogger) InfoWithStep(step, message string) {
+func (l *MongoNATSLogger) InfoWithStep(step, message string) {
 	l.logWithLevel("info", message, step)
 }
 
 // ErrorWithStep logs an error message with a specific build step
-func (l *NATSLogger) ErrorWithStep(step, message string) {
+func (l *MongoNATSLogger) ErrorWithStep(step, message string) {
 	l.logWithLevel("error", message, step)
 }
 
 // logWithLevel publishes a log message with the specified level
-func (l *NATSLogger) logWithLevel(level, message, step string) {
+func (l *MongoNATSLogger) logWithLevel(level, message, step string) {
+	timestamp := time.Now()
+
 	logMsg := LogMessage{
 		BuildID:   l.buildID,
+		ProjectID: l.projectID,
+		AppName:   l.appName,
 		Level:     level,
 		Message:   message,
-		Timestamp: time.Now(),
+		Timestamp: timestamp,
 		Step:      step,
 	}
 
@@ -103,29 +111,32 @@ func (l *NATSLogger) logWithLevel(level, message, step string) {
 		return
 	}
 
+	// Publish to NATS for real-time streaming
 	err = l.nc.Publish(l.subject, jsonData)
 	if err != nil {
-		log.Printf("Failed to publish log message: %v", err)
+		log.Printf("Failed to publish log message to NATS: %v", err)
 	}
 
-	// Publish to JetStream
+	// Publish to JetStream for persistence
 	_, err = l.js.Publish(l.subject, jsonData)
 	if err != nil {
 		log.Printf("Failed to publish log message to JetStream: %v", err)
 	}
 
+	// MongoDB saving is handled by the API server subscriber
+
 	// Also log to stdout for debugging
 	if step != "" {
 		fmt.Printf("[%s][%s][%s] %s\n",
-			logMsg.Timestamp.Format("15:04:05"), level, step, message)
+			timestamp.Format("15:04:05"), level, step, message)
 	} else {
 		fmt.Printf("[%s][%s] %s\n",
-			logMsg.Timestamp.Format("15:04:05"), level, message)
+			timestamp.Format("15:04:05"), level, message)
 	}
 }
 
 // Write implements io.Writer interface for compatibility with pack logger
-func (l *NATSLogger) Write(p []byte) (n int, err error) {
+func (l *MongoNATSLogger) Write(p []byte) (n int, err error) {
 	l.Info(string(p))
 	return len(p), nil
 }

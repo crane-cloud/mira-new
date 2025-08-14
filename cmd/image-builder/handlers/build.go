@@ -34,8 +34,8 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 	log.SetFlags(log.Ldate | log.Ltime)
 	log.Printf("MIRA Processing build request: %s", buildReq.ID)
 
-	// Create NATS logger for this build
-	logger := common.NewNATSLogger(h.natsClient.GetConnection(), buildReq.ID)
+	// Create NATS logger for this build with project and app info
+	logger := common.NewMongoNATSLogger(h.natsClient.GetConnection(), buildReq.ID, buildReq.Spec.ProjectID, buildReq.Name)
 
 	// Publish build status: started
 	status := &models.BuildStatus{
@@ -78,7 +78,7 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 }
 
 // executeBuildPipeline runs the complete build pipeline
-func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger *common.NATSLogger) error {
+func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger common.Logger) error {
 	// Step 1: Handle source code (git clone or file download)
 	sourcePath, err := h.handleSourceCode(buildSpec, logger)
 	if err != nil {
@@ -101,7 +101,7 @@ func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger 
 }
 
 // handleSourceCode handles git cloning or file downloading based on source type
-func (h *BuildHandler) handleSourceCode(buildSpec *models.BuildSpec, logger *common.NATSLogger) (string, error) {
+func (h *BuildHandler) handleSourceCode(buildSpec *models.BuildSpec, logger common.Logger) (string, error) {
 	switch buildSpec.Source.Type {
 	case "git":
 		logger.InfoWithStep("clone", "Fetching Codebase from Git Repository")

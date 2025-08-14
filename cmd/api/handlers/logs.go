@@ -5,23 +5,28 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
+	"time"
 
 	"mira/cmd/api/models"
+	"mira/cmd/api/services"
 	common "mira/cmd/common"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 )
 
-// LogHandler handles WebSocket log streaming
+// LogHandler handles WebSocket log streaming and MongoDB log operations
 type LogHandler struct {
-	natsClient *common.NATSClient
+	natsClient   *common.NATSClient
+	mongoService *services.MongoLogService
 }
 
 // NewLogHandler creates a new log handler
-func NewLogHandler(natsClient *common.NATSClient) *LogHandler {
+func NewLogHandler(natsClient *common.NATSClient, mongoService *services.MongoLogService) *LogHandler {
 	return &LogHandler{
-		natsClient: natsClient,
+		natsClient:   natsClient,
+		mongoService: mongoService,
 	}
 }
 
@@ -97,6 +102,154 @@ func (h *LogHandler) GetBuildLogs(c *fiber.Ctx) error {
 		Logs:    responseLogs,
 		Count:   len(responseLogs),
 	})
+}
+
+// GetBuildLogsFromMongoDB retrieves logs from MongoDB with query filters
+// @Summary Get build logs from MongoDB
+// @Description Retrieves logs from MongoDB storage with optional filters
+// @Tags logs
+// @Accept json
+// @Produce json
+// @Param buildId query string false "Build ID filter" example("550e8400-e29b-41d4-a716-446655440000")
+// @Param projectId query string false "Project ID filter" example("proj-123")
+// @Param appName query string false "App name filter" example("my-app")
+// @Param level query string false "Log level filter (info, error, debug)" example("info")
+// @Param step query string false "Build step filter" example("clone")
+// @Param startDate query string false "Start date filter (ISO 8601 format)" example("2024-01-01T00:00:00Z")
+// @Param endDate query string false "End date filter (ISO 8601 format)" example("2024-01-31T23:59:59Z")
+// @Param sort query string false "Sort order (asc for oldest first, desc for newest first)" example("asc")
+// @Param page query int false "Page number (default: 1)" example(1)
+// @Param limit query int false "Number of logs per page (default: 100, max: 1000)" example(100)
+// @Success 200 {object} models.BuildLogsResponse "Build logs retrieved successfully"
+// @Failure 400 {object} models.ErrorResponse "Invalid query parameters"
+// @Failure 500 {object} models.ErrorResponse "Failed to retrieve logs"
+// @Router /logs [get]
+func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
+	// Get query parameters
+	buildID := c.Query("buildId")
+	projectID := c.Query("projectId")
+	appName := c.Query("appName")
+	level := c.Query("level")
+	step := c.Query("step")
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+	sortOrder := c.Query("sort", "asc") // Default to ascending (oldest first)
+
+	if h.mongoService == nil {
+		return c.Status(500).JSON(models.ErrorResponse{
+			Error: "MongoDB service is not available",
+		})
+	}
+
+	// Get pagination parameters
+	pageStr := c.Query("page", "1")
+	limitStr := c.Query("limit", "100")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	// Parse date filters
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, startDateStr); err == nil {
+			startDate = &parsed
+		} else {
+			return c.Status(400).JSON(models.ErrorResponse{
+				Error: "Invalid startDate format. Use ISO 8601 format (e.g., 2024-01-01T00:00:00Z)",
+			})
+		}
+	}
+	if endDateStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, endDateStr); err == nil {
+			endDate = &parsed
+		} else {
+			return c.Status(400).JSON(models.ErrorResponse{
+				Error: "Invalid endDate format. Use ISO 8601 format (e.g., 2024-01-31T23:59:59Z)",
+			})
+		}
+	}
+
+	// Get logs from MongoDB with filters
+	logs, total, err := h.mongoService.GetLogsWithFilters(buildID, projectID, appName, level, step, startDate, endDate, page, limit, sortOrder)
+	if err != nil {
+		log.Printf("Failed to get logs from MongoDB: %v", err)
+		return c.Status(500).JSON(models.ErrorResponse{
+			Error: "Failed to retrieve logs from MongoDB",
+		})
+	}
+
+	// Build response with filters applied
+	response := fiber.Map{
+		"logs":  logs,
+		"count": len(logs),
+		"total": total,
+		"page":  page,
+		"limit": limit,
+		"pages": (total + int64(limit) - 1) / int64(limit), // Calculate total pages
+	}
+
+	// Add filters to response if they were applied
+	if buildID != "" {
+		response["build_id"] = buildID
+	}
+	if projectID != "" {
+		response["project_id"] = projectID
+	}
+	if appName != "" {
+		response["app_name"] = appName
+	}
+	if level != "" {
+		response["level"] = level
+	}
+	if step != "" {
+		response["step"] = step
+	}
+	if startDate != nil {
+		response["start_date"] = startDate.Format(time.RFC3339)
+	}
+	if endDate != nil {
+		response["end_date"] = endDate.Format(time.RFC3339)
+	}
+	response["sort"] = sortOrder
+
+	return c.JSON(response)
+}
+
+// GetLogStats retrieves log statistics from MongoDB
+// @Summary Get log statistics
+// @Description Retrieves statistics about logs stored in MongoDB
+// @Tags logs
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "Log statistics"
+// @Failure 500 {object} models.ErrorResponse "Failed to retrieve statistics"
+// @Router /logs/stats [get]
+func (h *LogHandler) GetLogStats(c *fiber.Ctx) error {
+	if h.mongoService == nil {
+		return c.Status(500).JSON(models.ErrorResponse{
+			Error: "MongoDB service is not available",
+		})
+	}
+
+	stats, err := h.mongoService.GetLogStats()
+	if err != nil {
+		log.Printf("Failed to get log stats: %v", err)
+		return c.Status(500).JSON(models.ErrorResponse{
+			Error: "Failed to retrieve log statistics",
+		})
+	}
+
+	return c.JSON(stats)
 }
 
 // StreamLogs handles WebSocket connections for streaming build logs

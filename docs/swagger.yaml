@@ -100,6 +100,9 @@ definitions:
     type: object
   models.LogMessage:
     properties:
+      app_name:
+        example: my-app
+        type: string
       build_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -108,6 +111,9 @@ definitions:
         type: string
       message:
         example: Build started
+        type: string
+      project_id:
+        example: proj-123
         type: string
       step:
         example: clone
@@ -319,6 +325,80 @@ paths:
       summary: Detect JavaScript framework from repository
       tags:
       - images
+  /logs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves logs from MongoDB storage with optional filters
+      parameters:
+      - description: Build ID filter
+        example: '"550e8400-e29b-41d4-a716-446655440000"'
+        in: query
+        name: buildId
+        type: string
+      - description: Project ID filter
+        example: '"proj-123"'
+        in: query
+        name: projectId
+        type: string
+      - description: App name filter
+        example: '"my-app"'
+        in: query
+        name: appName
+        type: string
+      - description: Log level filter (info, error, debug)
+        example: '"info"'
+        in: query
+        name: level
+        type: string
+      - description: Build step filter
+        example: '"clone"'
+        in: query
+        name: step
+        type: string
+      - description: Start date filter (ISO 8601 format)
+        example: '"2024-01-01T00:00:00Z"'
+        in: query
+        name: startDate
+        type: string
+      - description: End date filter (ISO 8601 format)
+        example: '"2024-01-31T23:59:59Z"'
+        in: query
+        name: endDate
+        type: string
+      - description: Sort order (asc for oldest first, desc for newest first)
+        example: '"asc"'
+        in: query
+        name: sort
+        type: string
+      - description: 'Page number (default: 1)'
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: 'Number of logs per page (default: 100, max: 1000)'
+        example: 100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Build logs retrieved successfully
+          schema:
+            $ref: '#/definitions/models.BuildLogsResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Failed to retrieve logs
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get build logs from MongoDB
+      tags:
+      - logs
   /logs/{buildId}/history:
     get:
       consumes:
@@ -348,6 +428,26 @@ paths:
           schema:
             $ref: '#/definitions/models.ErrorResponse'
       summary: Get build logs history
+      tags:
+      - logs
+  /logs/stats:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves statistics about logs stored in MongoDB
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Log statistics
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to retrieve statistics
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get log statistics
       tags:
       - logs
   /user/github/repos:

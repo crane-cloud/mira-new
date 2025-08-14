@@ -57,6 +57,8 @@ type BuildResponse struct {
 // LogMessage represents a log entry for streaming
 type LogMessage struct {
 	BuildID   string    `json:"build_id"`
+	ProjectID string    `json:"project_id,omitempty"`
+	AppName   string    `json:"app_name,omitempty"`
 	Level     string    `json:"level"` // info, error, debug
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
@@ -71,4 +73,15 @@ type BuildStatus struct {
 	CompletedAt time.Time `json:"completed_at,omitempty"`
 	Error       string    `json:"error,omitempty"`
 	ImageName   string    `json:"image_name,omitempty"`
+}
+
+// Logger interface defines the methods that any logger must implement
+type Logger interface {
+	Info(message string)
+	Error(message string)
+	Debug(message string)
+	InfoWithStep(step, message string)
+	ErrorWithStep(step, message string)
+	Log(fields map[string]string, message string)
+	Write(p []byte) (n int, err error)
 }

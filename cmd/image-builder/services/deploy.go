@@ -22,7 +22,7 @@ func NewDeployService() *DeployService {
 }
 
 // DeployToCraneCloud deploys the built image to Crane Cloud
-func (d *DeployService) DeployToCraneCloud(buildSpec *models.BuildSpec, logger *common.NATSLogger) error {
+func (d *DeployService) DeployToCraneCloud(buildSpec *models.BuildSpec, logger common.Logger) error {
 	logger.InfoWithStep("deploy", "Deploying image to Crane Cloud: "+buildSpec.Name)
 
 	deployConfig := imageUtils.CreateDeploymentConfig(buildSpec)

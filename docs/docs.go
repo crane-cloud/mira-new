@@ -255,6 +255,143 @@ const docTemplate = `{
                 }
             }
         },
+        "/logs": {
+            "get": {
+                "description": "Retrieves logs from MongoDB storage with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get build logs from MongoDB",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Build ID filter",
+                        "name": "buildId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"proj-123\"",
+                        "description": "Project ID filter",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"my-app\"",
+                        "description": "App name filter",
+                        "name": "appName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"info\"",
+                        "description": "Log level filter (info, error, debug)",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"clone\"",
+                        "description": "Build step filter",
+                        "name": "step",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-01T00:00:00Z\"",
+                        "description": "Start date filter (ISO 8601 format)",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-31T23:59:59Z\"",
+                        "description": "End date filter (ISO 8601 format)",
+                        "name": "endDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"asc\"",
+                        "description": "Sort order (asc for oldest first, desc for newest first)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 100,
+                        "description": "Number of logs per page (default: 100, max: 1000)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Build logs retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BuildLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve logs",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/logs/stats": {
+            "get": {
+                "description": "Retrieves statistics about logs stored in MongoDB",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get log statistics",
+                "responses": {
+                    "200": {
+                        "description": "Log statistics",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve statistics",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/logs/{buildId}/history": {
             "get": {
                 "description": "Retrieves all historical logs for a specific build from JetStream storage",
@@ -531,6 +668,10 @@ const docTemplate = `{
         "models.LogMessage": {
             "type": "object",
             "properties": {
+                "app_name": {
+                    "type": "string",
+                    "example": "my-app"
+                },
                 "build_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -542,6 +683,10 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Build started"
+                },
+                "project_id": {
+                    "type": "string",
+                    "example": "proj-123"
                 },
                 "step": {
                     "type": "string",
