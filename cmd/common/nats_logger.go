@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -12,16 +13,47 @@ import (
 // NATSLogger implements a logger that publishes logs to NATS for real-time streaming
 type NATSLogger struct {
 	nc      *nats.Conn
+	js      nats.JetStreamContext
 	buildID string
 	subject string
 }
 
 // NewNATSLogger creates a new NATS-based logger
 func NewNATSLogger(nc *nats.Conn, buildID string) *NATSLogger {
+	js, err := nc.JetStream()
+	if err != nil {
+		log.Printf("Failed to get JetStream context: %v", err)
+		return nil
+	}
+
+	// Ensure the log stream exists
+	streamName := "MIRA_LOGS"
+	_, err = js.StreamInfo(streamName)
+	if err != nil {
+		// Stream doesn't exist, create it
+		_, err = js.AddStream(&nats.StreamConfig{
+			Name:      streamName,
+			Subjects:  []string{"mira.logs.*"}, // Match all log subjects
+			Storage:   nats.FileStorage,
+			Retention: nats.LimitsPolicy,
+			MaxAge:    24 * time.Hour, // Keep logs for 24 hours
+			MaxMsgs:   10000,          // Keep max 10k messages
+		})
+		if err != nil {
+			// Check if the error is due to subject overlap
+			if strings.Contains(err.Error(), "subjects overlap") {
+				log.Printf("Stream with overlapping subjects already exists. Using existing stream.")
+			} else {
+				log.Printf("Failed to create log stream: %v", err)
+			}
+		}
+	}
+
 	return &NATSLogger{
 		nc:      nc,
 		buildID: buildID,
 		subject: BuildLogsSubject(buildID),
+		js:      js,
 	}
 }
 
@@ -65,15 +97,46 @@ func (l *NATSLogger) logWithLevel(level, message, step string) {
 		Step:      step,
 	}
 
-	data, err := json.Marshal(logMsg)
+	jsonData, err := json.Marshal(logMsg)
 	if err != nil {
 		log.Printf("Failed to marshal log message: %v", err)
 		return
 	}
 
-	err = l.nc.Publish(l.subject, data)
+	err = l.nc.Publish(l.subject, jsonData)
 	if err != nil {
 		log.Printf("Failed to publish log message: %v", err)
+	}
+
+	// Publish to JetStream for persistence
+	_, err = l.js.Publish(l.subject, jsonData)
+	if err != nil {
+		log.Printf("Failed to publish log message to JetStream: %v", err)
+		// Try to ensure stream exists and retry
+		streamName := "MIRA_LOGS"
+		_, streamErr := l.js.StreamInfo(streamName)
+		if streamErr != nil {
+			log.Printf("Stream doesn't exist, creating it...")
+			_, streamErr = l.js.AddStream(&nats.StreamConfig{
+				Name:      streamName,
+				Subjects:  []string{"mira.logs.*"},
+				Storage:   nats.FileStorage,
+				Retention: nats.LimitsPolicy,
+				MaxAge:    24 * time.Hour,
+				MaxMsgs:   10000,
+			})
+			if streamErr == nil {
+				// Retry publishing after creating stream
+				_, err = l.js.Publish(l.subject, jsonData)
+				if err != nil {
+					log.Printf("Failed to publish log message to JetStream after stream creation: %v", err)
+				} else {
+					log.Printf("Successfully published log to JetStream after stream creation")
+				}
+			}
+		}
+	} else {
+		log.Printf("Successfully published log to JetStream: %s", l.subject)
 	}
 
 	// Also log to stdout for debugging

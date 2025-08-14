@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -47,6 +48,18 @@ func NewNATSClient() (*NATSClient, error) {
 // GetConnection returns the NATS connection
 func (c *NATSClient) GetConnection() *nats.Conn {
 	return c.conn
+}
+
+// GetJetStream returns the JetStream context
+//
+// This method provides access to the JetStream context for advanced
+// operations like stream management, consumer creation, and message
+// retrieval from persistent storage.
+func (c *NATSClient) GetJetStream() (nats.JetStreamContext, error) {
+	if !c.IsConnected() {
+		return nil, fmt.Errorf("NATS connection is not healthy")
+	}
+	return c.conn.JetStream()
 }
 
 // Close closes the NATS connection
@@ -218,4 +231,143 @@ func (c *NATSClient) SubscribeToLogs(buildID string, handler func(*LogMessage)) 
 		}
 		handler(&logMsg)
 	})
+}
+
+// GetBuildLogs retrieves all logs for a specific build from JetStream
+//
+// This method fetches all historical log messages for a specific build ID
+// from the JetStream storage. It creates a temporary consumer to read
+// all messages from the build's log subject and returns them as an array.
+//
+// The method automatically ensures the log stream exists and cleans up
+// the temporary consumer after use.
+func (c *NATSClient) GetBuildLogs(buildID string) ([]LogMessage, error) {
+	js, err := c.GetJetStream()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get JetStream context: %v", err)
+	}
+
+	subject := BuildLogsSubject(buildID)
+	streamName := "MIRA_LOGS" // Default stream name
+
+	// Try to ensure the stream exists, but don't fail if it doesn't
+	err = c.ensureLogStream(js, streamName)
+	if err != nil {
+		log.Printf("Warning: Failed to ensure log stream: %v", err)
+		// Continue anyway, we'll try to find existing streams
+	}
+
+	// Create a consumer to read messages
+	consumerName := fmt.Sprintf("history_consumer_%s", buildID)
+	_, err = js.AddConsumer(streamName, &nats.ConsumerConfig{
+		Name:          consumerName,
+		FilterSubject: subject,
+		AckPolicy:     nats.AckExplicitPolicy,
+		DeliverPolicy: nats.DeliverAllPolicy,
+	})
+	if err != nil {
+		// Consumer might already exist, ignore the error
+	}
+
+	// Subscribe to the consumer to get all messages
+	sub, err := js.PullSubscribe(subject, consumerName, nats.PullMaxWaiting(1))
+	if err != nil {
+		// If pull subscription fails, try direct subscription to the subject
+		log.Printf("Pull subscription failed, trying direct subscription: %v", err)
+		sub, err = js.PullSubscribe(subject, "", nats.PullMaxWaiting(1))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create subscription: %v", err)
+		}
+	}
+	defer sub.Unsubscribe()
+
+	// Fetch all available messages
+	var logs []LogMessage
+	batchSize := 100
+
+	for {
+		messages, err := sub.Fetch(batchSize, nats.MaxWait(5*time.Second))
+		if err != nil {
+			if err == nats.ErrTimeout {
+				break // No more messages
+			}
+			return nil, fmt.Errorf("failed to fetch messages: %v", err)
+		}
+
+		if len(messages) == 0 {
+			break // No more messages
+		}
+
+		for _, msg := range messages {
+			var logMsg LogMessage
+			if err := json.Unmarshal(msg.Data, &logMsg); err != nil {
+				msg.Ack()
+				continue
+			}
+
+			logs = append(logs, logMsg)
+			msg.Ack()
+		}
+
+		if len(messages) < batchSize {
+			break // No more messages to fetch
+		}
+	}
+
+	// Clean up the consumer
+	js.DeleteConsumer(streamName, consumerName)
+
+	// If we found logs, return them
+	if len(logs) > 0 {
+		return logs, nil
+	}
+
+	// If no logs found, return empty array (this is normal for new builds)
+	log.Printf("No logs found for build %s", buildID)
+	return logs, nil
+}
+
+// ensureLogStream ensures that the log stream exists, creating it if necessary
+func (c *NATSClient) ensureLogStream(js nats.JetStreamContext, streamName string) error {
+	// Try to get stream info to check if it exists
+	streamInfo, err := js.StreamInfo(streamName)
+	if err == nil {
+		// Stream exists, check if it has the correct subjects
+		hasCorrectSubjects := false
+		for _, subject := range streamInfo.Config.Subjects {
+			if subject == "mira.logs.*" {
+				hasCorrectSubjects = true
+				break
+			}
+		}
+
+		if hasCorrectSubjects {
+			return nil // Stream exists with correct configuration
+		}
+
+		// Stream exists but doesn't have the correct subjects
+		// We can't modify subjects of an existing stream, so we'll use it as is
+		log.Printf("Stream %s exists but doesn't have mira.logs.* subject. Using existing stream.", streamName)
+		return nil
+	}
+
+	// Stream doesn't exist, create it
+	_, err = js.AddStream(&nats.StreamConfig{
+		Name:      streamName,
+		Subjects:  []string{"mira.logs.*"}, // Match all log subjects
+		Storage:   nats.FileStorage,
+		Retention: nats.LimitsPolicy,
+		MaxAge:    24 * time.Hour, // Keep logs for 24 hours
+		MaxMsgs:   10000,          // Keep max 10k messages
+	})
+	if err != nil {
+		// Check if the error is due to subject overlap
+		if strings.Contains(err.Error(), "subjects overlap") {
+			log.Printf("Stream with overlapping subjects already exists. Using existing stream.")
+			return nil
+		}
+		return fmt.Errorf("failed to create log stream: %v", err)
+	}
+
+	return nil
 }

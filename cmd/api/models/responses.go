@@ -48,3 +48,19 @@ type GitLabProject struct {
 type HealthResponse struct {
 	Status string `json:"status" example:"OK"`
 }
+
+// LogMessage represents a single log entry
+type LogMessage struct {
+	BuildID   string `json:"build_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Level     string `json:"level" example:"info"`
+	Message   string `json:"message" example:"Build started"`
+	Timestamp string `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+	Step      string `json:"step,omitempty" example:"clone"`
+}
+
+// BuildLogsResponse represents the response for build logs history
+type BuildLogsResponse struct {
+	BuildID string       `json:"build_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Logs    []LogMessage `json:"logs"`
+	Count   int          `json:"count" example:"5"`
+}

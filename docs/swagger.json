@@ -253,6 +253,51 @@
                 }
             }
         },
+        "/logs/{buildId}/history": {
+            "get": {
+                "description": "Retrieves all historical logs for a specific build from JetStream storage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get build logs history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Build ID",
+                        "name": "buildId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Build logs retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BuildLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Build ID is required",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve logs",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/user/github/repos": {
             "get": {
                 "security": [
@@ -370,6 +415,25 @@
                 }
             }
         },
+        "models.BuildLogsResponse": {
+            "type": "object",
+            "properties": {
+                "build_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "count": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LogMessage"
+                    }
+                }
+            }
+        },
         "models.BuildResponse": {
             "type": "object",
             "properties": {
@@ -459,6 +523,31 @@
                 "web_url": {
                     "type": "string",
                     "example": "https://gitlab.com/user/my-project"
+                }
+            }
+        },
+        "models.LogMessage": {
+            "type": "object",
+            "properties": {
+                "build_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "level": {
+                    "type": "string",
+                    "example": "info"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Build started"
+                },
+                "step": {
+                    "type": "string",
+                    "example": "clone"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
                 }
             }
         },

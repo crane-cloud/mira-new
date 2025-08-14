@@ -35,6 +35,7 @@ func setupLogRoutes(app *fiber.App, natsClient *common.NATSClient) {
 
 	// WebSocket endpoint for streaming logs
 	app.Get("/api/logs/:buildId", logHandler.WebSocketUpgrade)
+	app.Get("/api/logs/:buildId/history", logHandler.GetBuildLogs)
 }
 
 // setupGitUserRoutes configures Git user repository routes

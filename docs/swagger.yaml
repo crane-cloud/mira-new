@@ -20,6 +20,19 @@ definitions:
         example: my-app
         type: string
     type: object
+  models.BuildLogsResponse:
+    properties:
+      build_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      count:
+        example: 5
+        type: integer
+      logs:
+        items:
+          $ref: '#/definitions/models.LogMessage'
+        type: array
+    type: object
   models.BuildResponse:
     properties:
       data:
@@ -83,6 +96,24 @@ definitions:
         type: string
       web_url:
         example: https://gitlab.com/user/my-project
+        type: string
+    type: object
+  models.LogMessage:
+    properties:
+      build_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      level:
+        example: info
+        type: string
+      message:
+        example: Build started
+        type: string
+      step:
+        example: clone
+        type: string
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
         type: string
     type: object
   schemas.GenerateImageRequest:
@@ -288,6 +319,37 @@ paths:
       summary: Detect JavaScript framework from repository
       tags:
       - images
+  /logs/{buildId}/history:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all historical logs for a specific build from JetStream
+        storage
+      parameters:
+      - description: Build ID
+        example: '"550e8400-e29b-41d4-a716-446655440000"'
+        in: path
+        name: buildId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Build logs retrieved successfully
+          schema:
+            $ref: '#/definitions/models.BuildLogsResponse'
+        "400":
+          description: Build ID is required
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Failed to retrieve logs
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get build logs history
+      tags:
+      - logs
   /user/github/repos:
     get:
       consumes:
