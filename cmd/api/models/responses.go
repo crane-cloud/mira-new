@@ -52,8 +52,6 @@ type HealthResponse struct {
 // LogMessage represents a single log entry
 type LogMessage struct {
 	BuildID   string `json:"build_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ProjectID string `json:"project_id,omitempty" example:"proj-123"`
-	AppName   string `json:"app_name,omitempty" example:"my-app"`
 	Level     string `json:"level" example:"info"`
 	Message   string `json:"message" example:"Build started"`
 	Timestamp string `json:"timestamp" example:"2024-01-01T12:00:00Z"`
@@ -65,4 +63,26 @@ type BuildLogsResponse struct {
 	BuildID string       `json:"build_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Logs    []LogMessage `json:"logs"`
 	Count   int          `json:"count" example:"5"`
+}
+
+// BuildStatusResponse represents a single build status
+type BuildStatusResponse struct {
+	BuildID     string `json:"build_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ProjectID   string `json:"project_id,omitempty" example:"proj-123"`
+	AppName     string `json:"app_name,omitempty" example:"my-app"`
+	Status      string `json:"status" example:"completed"`
+	StartedAt   string `json:"started_at,omitempty" example:"2024-01-01T12:00:00Z"`
+	CompletedAt string `json:"completed_at,omitempty" example:"2024-01-01T12:30:00Z"`
+	Error       string `json:"error,omitempty" example:"Build failed"`
+	ImageName   string `json:"image_name,omitempty" example:"my-app:latest"`
+}
+
+// BuildsResponse represents the response for builds list
+type BuildsResponse struct {
+	Builds []BuildStatusResponse `json:"builds"`
+	Count  int                   `json:"count" example:"10"`
+	Total  int64                 `json:"total" example:"50"`
+	Page   int                   `json:"page" example:"1"`
+	Limit  int                   `json:"limit" example:"10"`
+	Pages  int                   `json:"pages" example:"5"`
 }

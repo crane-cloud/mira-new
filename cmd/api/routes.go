@@ -48,6 +48,7 @@ func setupLogRoutes(app *fiber.App, natsClient *common.NATSClient, mongoService 
 	// MongoDB-based endpoints
 	app.Get("/api/logs", logHandler.GetBuildLogsFromMongoDB)
 	app.Get("/api/logs/stats", logHandler.GetLogStats)
+	app.Get("/api/builds", logHandler.GetBuilds)
 }
 
 // setupGitUserRoutes configures Git user repository routes

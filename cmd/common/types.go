@@ -57,8 +57,6 @@ type BuildResponse struct {
 // LogMessage represents a log entry for streaming
 type LogMessage struct {
 	BuildID   string    `json:"build_id"`
-	ProjectID string    `json:"project_id,omitempty"`
-	AppName   string    `json:"app_name,omitempty"`
 	Level     string    `json:"level"` // info, error, debug
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
@@ -68,6 +66,8 @@ type LogMessage struct {
 // BuildStatus represents the current status of a build
 type BuildStatus struct {
 	BuildID     string    `json:"build_id"`
+	ProjectID   string    `json:"project_id,omitempty"`
+	AppName     string    `json:"app_name,omitempty"`
 	Status      string    `json:"status"` // pending, running, completed, failed
 	StartedAt   time.Time `json:"started_at,omitempty"`
 	CompletedAt time.Time `json:"completed_at,omitempty"`

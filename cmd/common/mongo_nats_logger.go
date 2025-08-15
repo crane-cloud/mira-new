@@ -12,16 +12,14 @@ import (
 
 // MongoNATSLogger implements a logger that publishes logs to NATS
 type MongoNATSLogger struct {
-	nc        *nats.Conn
-	js        nats.JetStreamContext
-	buildID   string
-	projectID string
-	appName   string
-	subject   string
+	nc      *nats.Conn
+	js      nats.JetStreamContext
+	buildID string
+	subject string
 }
 
 // NewMongoNATSLogger creates a new NATS logger
-func NewMongoNATSLogger(nc *nats.Conn, buildID, projectID, appName string) *MongoNATSLogger {
+func NewMongoNATSLogger(nc *nats.Conn, buildID string) *MongoNATSLogger {
 	js, err := nc.JetStream()
 	if err != nil {
 		log.Printf("Failed to get JetStream context: %v", err)
@@ -52,12 +50,10 @@ func NewMongoNATSLogger(nc *nats.Conn, buildID, projectID, appName string) *Mong
 	}
 
 	return &MongoNATSLogger{
-		nc:        nc,
-		buildID:   buildID,
-		projectID: projectID,
-		appName:   appName,
-		subject:   BuildLogsSubject(buildID),
-		js:        js,
+		nc:      nc,
+		buildID: buildID,
+		subject: BuildLogsSubject(buildID),
+		js:      js,
 	}
 }
 
@@ -97,8 +93,6 @@ func (l *MongoNATSLogger) logWithLevel(level, message, step string) {
 
 	logMsg := LogMessage{
 		BuildID:   l.buildID,
-		ProjectID: l.projectID,
-		AppName:   l.appName,
 		Level:     level,
 		Message:   message,
 		Timestamp: timestamp,

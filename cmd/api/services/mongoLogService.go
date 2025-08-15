@@ -22,7 +22,8 @@ type MongoLogService struct {
 
 // NewMongoLogService creates a new MongoDB log service
 func NewMongoLogService(mongoConfig *config.MongoDBConfig) *MongoLogService {
-	collection := mongoConfig.GetCollection("logs")
+	logsCollection := mongoConfig.GetCollection("logs")
+	buildsCollection := mongoConfig.GetCollection("builds")
 
 	// Create indexes for better query performance
 	go func() {
@@ -38,49 +39,58 @@ func NewMongoLogService(mongoConfig *config.MongoDBConfig) *MongoLogService {
 			Options: options.Index().SetName("build_id_timestamp_idx"),
 		}
 
-		// Create index on project_id for filtering
-		projectIndexModel := mongo.IndexModel{
-			Keys: bson.D{
-				{Key: "project_id", Value: 1},
-				{Key: "timestamp", Value: 1},
-			},
-			Options: options.Index().SetName("project_id_timestamp_idx"),
-		}
-
-		// Create index on app_name for filtering
-		appNameIndexModel := mongo.IndexModel{
-			Keys: bson.D{
-				{Key: "app_name", Value: 1},
-				{Key: "timestamp", Value: 1},
-			},
-			Options: options.Index().SetName("app_name_timestamp_idx"),
-		}
-
-		// Create all indexes
-		indexes := []mongo.IndexModel{indexModel, projectIndexModel, appNameIndexModel}
-		for _, idx := range indexes {
-			_, err := collection.Indexes().CreateOne(ctx, idx)
+		// Create all indexes for logs collection
+		logsIndexes := []mongo.IndexModel{indexModel}
+		for _, idx := range logsIndexes {
+			_, err := logsCollection.Indexes().CreateOne(ctx, idx)
 			if err != nil {
 				log.Printf("Failed to create index %s: %v", idx.Options.Name, err)
 			} else {
 				log.Printf("Successfully created index %s for logs collection", idx.Options.Name)
 			}
 		}
+
+		// Create indexes for builds collection
+		buildsProjectIndex := mongo.IndexModel{
+			Keys: bson.D{
+				{Key: "project_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index().SetName("builds_project_id_created_idx"),
+		}
+
+		buildsAppNameIndex := mongo.IndexModel{
+			Keys: bson.D{
+				{Key: "app_name", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index().SetName("builds_app_name_created_idx"),
+		}
+
+		buildsIndexes := []mongo.IndexModel{buildsProjectIndex, buildsAppNameIndex}
+		for _, idx := range buildsIndexes {
+			_, err := buildsCollection.Indexes().CreateOne(ctx, idx)
+			if err != nil {
+				log.Printf("Failed to create index %s: %v", idx.Options.Name, err)
+			} else {
+				log.Printf("Successfully created index %s for builds collection", idx.Options.Name)
+			}
+		}
 	}()
 
 	return &MongoLogService{
 		mongoConfig: mongoConfig,
-		collection:  collection,
+		collection:  logsCollection,
 	}
 }
 
 // SaveLog saves a single log message to MongoDB
-func (s *MongoLogService) SaveLog(buildID, projectID, appName, level, message, step string, timestamp time.Time) error {
+func (s *MongoLogService) SaveLog(buildID, level, message, step string, timestamp time.Time) error {
 	if s.collection == nil {
 		return fmt.Errorf("MongoDB collection is not available")
 	}
 
-	mongoLog := models.ToMongoLogMessage(buildID, projectID, appName, level, message, step, timestamp)
+	mongoLog := models.ToMongoLogMessage(buildID, level, message, step, timestamp)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -127,7 +137,7 @@ func (s *MongoLogService) GetLogsByBuildID(buildID string) ([]models.LogMessage,
 }
 
 // GetLogsWithFilters retrieves logs with various filters and pagination
-func (s *MongoLogService) GetLogsWithFilters(buildID, projectID, appName, level, step string, startDate, endDate *time.Time, page, limit int, sortOrder string) ([]models.LogMessage, int64, error) {
+func (s *MongoLogService) GetLogsWithFilters(buildID, level, step string, startDate, endDate *time.Time, page, limit int, sortOrder string) ([]models.LogMessage, int64, error) {
 	if s.collection == nil {
 		return nil, 0, fmt.Errorf("MongoDB collection is not available")
 	}
@@ -140,12 +150,6 @@ func (s *MongoLogService) GetLogsWithFilters(buildID, projectID, appName, level,
 
 	if buildID != "" {
 		filter["build_id"] = buildID
-	}
-	if projectID != "" {
-		filter["project_id"] = projectID
-	}
-	if appName != "" {
-		filter["app_name"] = appName
 	}
 	if level != "" {
 		filter["level"] = level
@@ -207,7 +211,7 @@ func (s *MongoLogService) GetLogsWithFilters(buildID, projectID, appName, level,
 
 // GetLogsByBuildIDWithPagination retrieves logs with pagination (backward compatibility)
 func (s *MongoLogService) GetLogsByBuildIDWithPagination(buildID string, page, limit int) ([]models.LogMessage, int64, error) {
-	return s.GetLogsWithFilters(buildID, "", "", "", "", nil, nil, page, limit, "asc")
+	return s.GetLogsWithFilters(buildID, "", "", nil, nil, page, limit, "asc")
 }
 
 // DeleteLogsByBuildID deletes all logs for a specific build ID
@@ -331,4 +335,93 @@ func (s *MongoLogService) GetLogStats() (map[string]interface{}, error) {
 	}
 
 	return stats, nil
+}
+
+// SaveBuildStatus saves a build status to MongoDB
+func (s *MongoLogService) SaveBuildStatus(buildID, projectID, appName, status string, startedAt, completedAt time.Time, error, imageName string) error {
+	buildsCollection := s.mongoConfig.GetCollection("builds")
+	if buildsCollection == nil {
+		return fmt.Errorf("MongoDB builds collection is not available")
+	}
+
+	mongoBuildStatus := models.ToMongoBuildStatus(buildID, projectID, appName, status, startedAt, completedAt, error, imageName)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Use upsert to update existing build status or create new one
+	filter := bson.M{"build_id": buildID}
+	update := bson.M{"$set": mongoBuildStatus}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := buildsCollection.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		return fmt.Errorf("failed to save build status: %v", err)
+	}
+
+	return nil
+}
+
+// GetBuildsWithFilters retrieves builds with various filters and pagination
+func (s *MongoLogService) GetBuildsWithFilters(projectID, appName, status string, page, limit int, sortOrder string) ([]models.BuildStatusResponse, int64, error) {
+	buildsCollection := s.mongoConfig.GetCollection("builds")
+	if buildsCollection == nil {
+		return nil, 0, fmt.Errorf("MongoDB builds collection is not available")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Build filter based on provided parameters
+	filter := bson.M{}
+
+	if projectID != "" {
+		filter["project_id"] = projectID
+	}
+	if appName != "" {
+		filter["app_name"] = appName
+	}
+	if status != "" {
+		filter["status"] = status
+	}
+
+	// Count total documents
+	total, err := buildsCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count builds: %v", err)
+	}
+
+	// Calculate skip value for pagination
+	skip := int64((page - 1) * limit)
+
+	// Determine sort order
+	sortValue := -1 // Default to descending (newest first)
+	if sortOrder == "asc" {
+		sortValue = 1 // Ascending (oldest first)
+	}
+
+	// Find builds with pagination
+	opts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: sortValue}}).
+		SetSkip(skip).
+		SetLimit(int64(limit))
+
+	cursor, err := buildsCollection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find builds: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var mongoBuilds []models.MongoBuildStatus
+	if err = cursor.All(ctx, &mongoBuilds); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode builds: %v", err)
+	}
+
+	// Convert to response format
+	var builds []models.BuildStatusResponse
+	for _, mongoBuild := range mongoBuilds {
+		builds = append(builds, mongoBuild.ToBuildStatusResponse())
+	}
+
+	return builds, total, nil
 }

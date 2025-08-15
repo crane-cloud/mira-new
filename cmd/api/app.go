@@ -98,6 +98,7 @@ func StartServer(port string) {
 	if mongoConfig != nil && mongoConfig.Client != nil {
 		mongoService := services.NewMongoLogService(mongoConfig)
 		startMongoDBLogSubscriber(natsClient, mongoService)
+		startMongoDBBuildStatusSubscriber(natsClient, mongoService)
 	}
 
 	app.Listen(":" + port)
@@ -118,8 +119,6 @@ func startMongoDBLogSubscriber(natsClient *common.NATSClient, mongoService *serv
 		// Save to MongoDB
 		err := mongoService.SaveLog(
 			logMsg.BuildID,
-			logMsg.ProjectID,
-			logMsg.AppName,
 			logMsg.Level,
 			logMsg.Message,
 			logMsg.Step,
@@ -135,5 +134,40 @@ func startMongoDBLogSubscriber(natsClient *common.NATSClient, mongoService *serv
 		log.Printf("Failed to subscribe to logs: %v", err)
 	} else {
 		log.Printf("Started MongoDB log subscriber on subject: %s", subject)
+	}
+}
+
+// startMongoDBBuildStatusSubscriber starts listening to NATS build statuses and saving them to MongoDB
+func startMongoDBBuildStatusSubscriber(natsClient *common.NATSClient, mongoService *services.MongoLogService) {
+	subject := "mira.status.*"
+	_, err := natsClient.GetConnection().Subscribe(subject, func(msg *nats.Msg) {
+		var buildStatus common.BuildStatus
+		if err := json.Unmarshal(msg.Data, &buildStatus); err != nil {
+			log.Printf("Failed to unmarshal build status: %v", err)
+			return
+		}
+
+		// Save build status with project_id and app_name from the build status
+		err := mongoService.SaveBuildStatus(
+			buildStatus.BuildID,
+			buildStatus.ProjectID,
+			buildStatus.AppName,
+			buildStatus.Status,
+			buildStatus.StartedAt,
+			buildStatus.CompletedAt,
+			buildStatus.Error,
+			buildStatus.ImageName,
+		)
+		if err != nil {
+			log.Printf("Failed to save build status to MongoDB: %v", err)
+		} else {
+			log.Printf("✅ Saved build status to MongoDB for build %s: %s (Project: %s, App: %s)",
+				buildStatus.BuildID, buildStatus.Status, buildStatus.ProjectID, buildStatus.AppName)
+		}
+	})
+	if err != nil {
+		log.Printf("Failed to subscribe to build statuses: %v", err)
+	} else {
+		log.Printf("Started MongoDB build status subscriber on subject: %s", subject)
 	}
 }

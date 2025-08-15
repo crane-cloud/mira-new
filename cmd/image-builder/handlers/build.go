@@ -34,16 +34,18 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 	log.SetFlags(log.Ldate | log.Ltime)
 	log.Printf("MIRA Processing build request: %s", buildReq.ID)
 
-	// Create NATS logger for this build with project and app info
-	logger := common.NewMongoNATSLogger(h.natsClient.GetConnection(), buildReq.ID, buildReq.Spec.ProjectID, buildReq.Name)
+	// Create NATS logger for this build
+	logger := common.NewMongoNATSLogger(h.natsClient.GetConnection(), buildReq.ID)
 
 	// Publish build status: started
-	status := &models.BuildStatus{
+	status := &common.BuildStatus{
 		BuildID:   buildReq.ID,
+		ProjectID: buildReq.Spec.ProjectID,
+		AppName:   buildReq.Name,
 		Status:    "running",
 		StartedAt: time.Now(),
 	}
-	h.natsClient.PublishBuildStatus((*common.BuildStatus)(status))
+	h.natsClient.PublishBuildStatus(status)
 
 	// Convert BuildRequest to internal build spec
 	buildSpec := imageUtils.ConvertToBuildSpec(buildReq)
@@ -58,7 +60,7 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 		status.Status = "failed"
 		status.CompletedAt = time.Now()
 		status.Error = err.Error()
-		h.natsClient.PublishBuildStatus((*common.BuildStatus)(status))
+		h.natsClient.PublishBuildStatus(status)
 
 		return fmt.Errorf("error creating image: %v", err)
 	}
@@ -72,7 +74,7 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 	status.Status = "completed"
 	status.CompletedAt = time.Now()
 	status.ImageName = imageName
-	h.natsClient.PublishBuildStatus((*common.BuildStatus)(status))
+	h.natsClient.PublishBuildStatus(status)
 
 	return nil
 }

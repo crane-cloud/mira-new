@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -111,8 +112,6 @@ func (h *LogHandler) GetBuildLogs(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param buildId query string false "Build ID filter" example("550e8400-e29b-41d4-a716-446655440000")
-// @Param projectId query string false "Project ID filter" example("proj-123")
-// @Param appName query string false "App name filter" example("my-app")
 // @Param level query string false "Log level filter (info, error, debug)" example("info")
 // @Param step query string false "Build step filter" example("clone")
 // @Param startDate query string false "Start date filter (ISO 8601 format)" example("2024-01-01T00:00:00Z")
@@ -127,8 +126,6 @@ func (h *LogHandler) GetBuildLogs(c *fiber.Ctx) error {
 func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
 	// Get query parameters
 	buildID := c.Query("buildId")
-	projectID := c.Query("projectId")
-	appName := c.Query("appName")
 	level := c.Query("level")
 	step := c.Query("step")
 	startDateStr := c.Query("startDate")
@@ -180,7 +177,7 @@ func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
 	}
 
 	// Get logs from MongoDB with filters
-	logs, total, err := h.mongoService.GetLogsWithFilters(buildID, projectID, appName, level, step, startDate, endDate, page, limit, sortOrder)
+	logs, total, err := h.mongoService.GetLogsWithFilters(buildID, level, step, startDate, endDate, page, limit, sortOrder)
 	if err != nil {
 		log.Printf("Failed to get logs from MongoDB: %v", err)
 		return c.Status(500).JSON(models.ErrorResponse{
@@ -202,12 +199,6 @@ func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
 	if buildID != "" {
 		response["build_id"] = buildID
 	}
-	if projectID != "" {
-		response["project_id"] = projectID
-	}
-	if appName != "" {
-		response["app_name"] = appName
-	}
 	if level != "" {
 		response["level"] = level
 	}
@@ -221,6 +212,90 @@ func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
 		response["end_date"] = endDate.Format(time.RFC3339)
 	}
 	response["sort"] = sortOrder
+
+	return c.JSON(response)
+}
+
+// GetBuilds retrieves builds with optional filters
+// @Summary Get builds with filters
+// @Description Retrieves builds from MongoDB storage with optional filters
+// @Tags builds
+// @Accept json
+// @Produce json
+// @Param projectId query string false "Project ID filter" example("proj-123")
+// @Param appName query string false "App name filter" example("my-app")
+// @Param status query string false "Build status filter (pending, running, completed, failed)" example("completed")
+// @Param sort query string false "Sort order (desc for newest first, asc for oldest first)" example("desc")
+// @Param page query int false "Page number (default: 1)" example(1)
+// @Param limit query int false "Number of builds per page (default: 10, max: 100)" example(10)
+// @Success 200 {object} models.BuildsResponse "Builds retrieved successfully"
+// @Failure 400 {object} models.ErrorResponse "Invalid query parameters"
+// @Failure 500 {object} models.ErrorResponse "Failed to retrieve builds"
+// @Router /builds [get]
+func (h *LogHandler) GetBuilds(c *fiber.Ctx) error {
+	// Get query parameters
+	projectID := c.Query("projectId")
+	appName := c.Query("appName")
+	status := c.Query("status")
+	sortOrder := c.Query("sort", "desc") // Default to descending (newest first)
+
+	// Parse pagination parameters
+	page := 1
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	limit := 10 // Default limit for builds
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			if l > 100 {
+				l = 100 // Max limit
+			}
+			limit = l
+		}
+	}
+
+	if h.mongoService == nil {
+		return c.Status(500).JSON(models.ErrorResponse{
+			Error: "MongoDB service not available",
+		})
+	}
+
+	// Get builds from MongoDB with filters
+	builds, total, err := h.mongoService.GetBuildsWithFilters(projectID, appName, status, page, limit, sortOrder)
+	if err != nil {
+		log.Printf("Failed to get builds from MongoDB: %v", err)
+		return c.Status(500).JSON(models.ErrorResponse{
+			Error: "Failed to retrieve builds",
+		})
+	}
+
+	// Calculate pagination info
+	pages := int(math.Ceil(float64(total) / float64(limit)))
+
+	// Build response
+	response := fiber.Map{
+		"builds": builds,
+		"count":  len(builds),
+		"total":  total,
+		"page":   page,
+		"limit":  limit,
+		"pages":  pages,
+		"sort":   sortOrder,
+	}
+
+	// Add filters to response if they were applied
+	if projectID != "" {
+		response["project_id"] = projectID
+	}
+	if appName != "" {
+		response["app_name"] = appName
+	}
+	if status != "" {
+		response["status"] = status
+	}
 
 	return c.JSON(response)
 }

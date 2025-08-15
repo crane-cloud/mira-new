@@ -155,6 +155,85 @@
                 }
             }
         },
+        "/builds": {
+            "get": {
+                "description": "Retrieves builds from MongoDB storage with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Get builds with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"proj-123\"",
+                        "description": "Project ID filter",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"my-app\"",
+                        "description": "App name filter",
+                        "name": "appName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"completed\"",
+                        "description": "Build status filter (pending, running, completed, failed)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"desc\"",
+                        "description": "Sort order (desc for newest first, asc for oldest first)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Number of builds per page (default: 10, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Builds retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BuildsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve builds",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/images/containerize": {
             "post": {
                 "description": "Converts source code from Git repository into a Docker image and deploys to Crane Cloud",
@@ -272,20 +351,6 @@
                         "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
                         "description": "Build ID filter",
                         "name": "buildId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "example": "\"proj-123\"",
-                        "description": "Project ID filter",
-                        "name": "projectId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "example": "\"my-app\"",
-                        "description": "App name filter",
-                        "name": "appName",
                         "in": "query"
                     },
                     {
@@ -583,6 +648,74 @@
                 }
             }
         },
+        "models.BuildStatusResponse": {
+            "type": "object",
+            "properties": {
+                "app_name": {
+                    "type": "string",
+                    "example": "my-app"
+                },
+                "build_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "completed_at": {
+                    "type": "string",
+                    "example": "2024-01-01T12:30:00Z"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Build failed"
+                },
+                "image_name": {
+                    "type": "string",
+                    "example": "my-app:latest"
+                },
+                "project_id": {
+                    "type": "string",
+                    "example": "proj-123"
+                },
+                "started_at": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
+                }
+            }
+        },
+        "models.BuildsResponse": {
+            "type": "object",
+            "properties": {
+                "builds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.BuildStatusResponse"
+                    }
+                },
+                "count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "pages": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
         "models.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -666,10 +799,6 @@
         "models.LogMessage": {
             "type": "object",
             "properties": {
-                "app_name": {
-                    "type": "string",
-                    "example": "my-app"
-                },
                 "build_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -681,10 +810,6 @@
                 "message": {
                     "type": "string",
                     "example": "Build started"
-                },
-                "project_id": {
-                    "type": "string",
-                    "example": "proj-123"
                 },
                 "step": {
                     "type": "string",

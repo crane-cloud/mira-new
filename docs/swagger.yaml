@@ -41,6 +41,55 @@ definitions:
         example: Image generation started
         type: string
     type: object
+  models.BuildStatusResponse:
+    properties:
+      app_name:
+        example: my-app
+        type: string
+      build_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      completed_at:
+        example: "2024-01-01T12:30:00Z"
+        type: string
+      error:
+        example: Build failed
+        type: string
+      image_name:
+        example: my-app:latest
+        type: string
+      project_id:
+        example: proj-123
+        type: string
+      started_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      status:
+        example: completed
+        type: string
+    type: object
+  models.BuildsResponse:
+    properties:
+      builds:
+        items:
+          $ref: '#/definitions/models.BuildStatusResponse'
+        type: array
+      count:
+        example: 10
+        type: integer
+      limit:
+        example: 10
+        type: integer
+      page:
+        example: 1
+        type: integer
+      pages:
+        example: 5
+        type: integer
+      total:
+        example: 50
+        type: integer
+    type: object
   models.ErrorResponse:
     properties:
       error:
@@ -100,9 +149,6 @@ definitions:
     type: object
   models.LogMessage:
     properties:
-      app_name:
-        example: my-app
-        type: string
       build_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -111,9 +157,6 @@ definitions:
         type: string
       message:
         example: Build started
-        type: string
-      project_id:
-        example: proj-123
         type: string
       step:
         example: clone
@@ -259,6 +302,60 @@ paths:
       summary: GitLab OAuth login
       tags:
       - auth
+  /builds:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves builds from MongoDB storage with optional filters
+      parameters:
+      - description: Project ID filter
+        example: '"proj-123"'
+        in: query
+        name: projectId
+        type: string
+      - description: App name filter
+        example: '"my-app"'
+        in: query
+        name: appName
+        type: string
+      - description: Build status filter (pending, running, completed, failed)
+        example: '"completed"'
+        in: query
+        name: status
+        type: string
+      - description: Sort order (desc for newest first, asc for oldest first)
+        example: '"desc"'
+        in: query
+        name: sort
+        type: string
+      - description: 'Page number (default: 1)'
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: 'Number of builds per page (default: 10, max: 100)'
+        example: 10
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Builds retrieved successfully
+          schema:
+            $ref: '#/definitions/models.BuildsResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Failed to retrieve builds
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get builds with filters
+      tags:
+      - builds
   /images/containerize:
     post:
       consumes:
@@ -335,16 +432,6 @@ paths:
         example: '"550e8400-e29b-41d4-a716-446655440000"'
         in: query
         name: buildId
-        type: string
-      - description: Project ID filter
-        example: '"proj-123"'
-        in: query
-        name: projectId
-        type: string
-      - description: App name filter
-        example: '"my-app"'
-        in: query
-        name: appName
         type: string
       - description: Log level filter (info, error, debug)
         example: '"info"'
