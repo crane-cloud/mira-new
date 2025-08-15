@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"mira/cmd/api/models"
@@ -39,14 +41,39 @@ func NewMongoLogService(mongoConfig *config.MongoDBConfig) *MongoLogService {
 			Options: options.Index().SetName("build_id_timestamp_idx"),
 		}
 
+		// Optionally create TTL index for logs collection based on MONGO_LOG_TTL_HOURS env var
+		var ttlIndex *mongo.IndexModel
+		if ttlHoursStr := os.Getenv("MONGO_LOG_TTL_HOURS"); ttlHoursStr != "" {
+			if ttlHours, err := strconv.Atoi(ttlHoursStr); err == nil && ttlHours > 0 {
+				expireSeconds := int32(ttlHours * 3600)
+				ttlIndex = &mongo.IndexModel{
+					Keys:    bson.D{{Key: "timestamp", Value: 1}},
+					Options: options.Index().SetExpireAfterSeconds(expireSeconds).SetName("logs_timestamp_ttl_idx"),
+				}
+			} else {
+				log.Printf("Invalid MONGO_LOG_TTL_HOURS value: %s", ttlHoursStr)
+			}
+		}
+
 		// Create all indexes for logs collection
 		logsIndexes := []mongo.IndexModel{indexModel}
+		if ttlIndex != nil {
+			logsIndexes = append(logsIndexes, *ttlIndex)
+		}
 		for _, idx := range logsIndexes {
 			_, err := logsCollection.Indexes().CreateOne(ctx, idx)
 			if err != nil {
-				log.Printf("Failed to create index %s: %v", idx.Options.Name, err)
+				name := ""
+				if idx.Options != nil && idx.Options.Name != nil {
+					name = *idx.Options.Name
+				}
+				log.Printf("Failed to create index %s: %v", name, err)
 			} else {
-				log.Printf("Successfully created index %s for logs collection", idx.Options.Name)
+				name := ""
+				if idx.Options != nil && idx.Options.Name != nil {
+					name = *idx.Options.Name
+				}
+				log.Printf("Successfully created index %s for logs collection", name)
 			}
 		}
 
@@ -71,9 +98,17 @@ func NewMongoLogService(mongoConfig *config.MongoDBConfig) *MongoLogService {
 		for _, idx := range buildsIndexes {
 			_, err := buildsCollection.Indexes().CreateOne(ctx, idx)
 			if err != nil {
-				log.Printf("Failed to create index %s: %v", idx.Options.Name, err)
+				name := ""
+				if idx.Options != nil && idx.Options.Name != nil {
+					name = *idx.Options.Name
+				}
+				log.Printf("Failed to create index %s: %v", name, err)
 			} else {
-				log.Printf("Successfully created index %s for builds collection", idx.Options.Name)
+				name := ""
+				if idx.Options != nil && idx.Options.Name != nil {
+					name = *idx.Options.Name
+				}
+				log.Printf("Successfully created index %s for builds collection", name)
 			}
 		}
 	}()

@@ -26,6 +26,7 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password
       - MONGO_INITDB_DATABASE=mira
+      - MONGO_LOG_TTL_HOURS=1440 # 60 days
     networks:
       - mira-network
     volumes:
@@ -59,6 +60,7 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
       - MONGODB_URI=mongodb://admin:password@mongodb:27017/mira?authSource=admin
+      - MONGO_LOG_TTL_HOURS=1440 # 60 days
       - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-testuser}
       - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://api.cranecloud.io}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -97,6 +99,7 @@ services:
       - NATS_URL=nats://nats:4222
       - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://staging.api.cranecloud.io}
       - MONGODB_URI=mongodb://admin:password@mongodb:27017/mira?authSource=admin
+      - MONGO_LOG_TTL_HOURS=1440 # 60 days
       - CGO_ENABLED=0
       - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
       - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}
