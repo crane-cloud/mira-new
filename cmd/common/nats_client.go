@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -257,27 +258,24 @@ func (c *NATSClient) GetBuildLogs(buildID string) ([]LogMessage, error) {
 		// Continue anyway, we'll try to find existing streams
 	}
 
-	// Create a consumer to read messages
-	consumerName := fmt.Sprintf("history_consumer_%s", buildID)
+	// Create a unique durable consumer to ensure DeliverAll per request
+	consumerName := fmt.Sprintf("hist_%s_%d", buildID, time.Now().UnixNano())
 	_, err = js.AddConsumer(streamName, &nats.ConsumerConfig{
-		Name:          consumerName,
-		FilterSubject: subject,
-		AckPolicy:     nats.AckExplicitPolicy,
-		DeliverPolicy: nats.DeliverAllPolicy,
+		Durable:           consumerName,
+		FilterSubject:     subject,
+		AckPolicy:         nats.AckExplicitPolicy,
+		DeliverPolicy:     nats.DeliverAllPolicy,
+		InactiveThreshold: 30 * time.Second,
 	})
 	if err != nil {
-		// Consumer might already exist, ignore the error
+		return nil, fmt.Errorf("failed to add consumer: %v", err)
 	}
+	defer js.DeleteConsumer(streamName, consumerName)
 
-	// Subscribe to the consumer to get all messages
-	sub, err := js.PullSubscribe(subject, consumerName, nats.PullMaxWaiting(1))
+	// Subscribe to the durable consumer bound to the stream
+	sub, err := js.PullSubscribe(subject, consumerName, nats.BindStream(streamName))
 	if err != nil {
-		// If pull subscription fails, try direct subscription to the subject
-		log.Printf("Pull subscription failed, trying direct subscription: %v", err)
-		sub, err = js.PullSubscribe(subject, "", nats.PullMaxWaiting(1))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create subscription: %v", err)
-		}
+		return nil, fmt.Errorf("failed to create subscription: %v", err)
 	}
 	defer sub.Unsubscribe()
 
@@ -314,9 +312,6 @@ func (c *NATSClient) GetBuildLogs(buildID string) ([]LogMessage, error) {
 		}
 	}
 
-	// Clean up the consumer
-	js.DeleteConsumer(streamName, consumerName)
-
 	// If we found logs, return them
 	if len(logs) > 0 {
 		return logs, nil
@@ -351,14 +346,28 @@ func (c *NATSClient) ensureLogStream(js nats.JetStreamContext, streamName string
 		return nil
 	}
 
+	// Configurable retention
+	maxAgeHours := 24
+	if v := os.Getenv("MIRA_LOG_STREAM_MAX_AGE_HOURS"); v != "" {
+		if n, e := strconv.Atoi(v); e == nil && n > 0 {
+			maxAgeHours = n
+		}
+	}
+	maxMsgs := 10000
+	if v := os.Getenv("MIRA_LOG_STREAM_MAX_MSGS"); v != "" {
+		if n, e := strconv.Atoi(v); e == nil && n > 0 {
+			maxMsgs = n
+		}
+	}
+
 	// Stream doesn't exist, create it
 	_, err = js.AddStream(&nats.StreamConfig{
 		Name:      streamName,
 		Subjects:  []string{"mira.logs.*"}, // Match all log subjects
 		Storage:   nats.FileStorage,
 		Retention: nats.LimitsPolicy,
-		MaxAge:    24 * time.Hour, // Keep logs for 24 hours
-		MaxMsgs:   10000,          // Keep max 10k messages
+		MaxAge:    time.Duration(maxAgeHours) * time.Hour,
+		MaxMsgs:   int64(maxMsgs),
 	})
 	if err != nil {
 		// Check if the error is due to subject overlap

@@ -43,7 +43,8 @@ func setupLogRoutes(app *fiber.App, natsClient *common.NATSClient, mongoService 
 
 	// WebSocket endpoint for streaming logs
 	app.Get("/api/logs/:buildId", logHandler.WebSocketUpgrade)
-	// app.Get("/api/logs/:buildId/history", logHandler.GetBuildLogs)
+
+	app.Get("/api/logs/:buildId/history", logHandler.GetJetStreamBuildLogs)
 
 	// MongoDB-based endpoints
 	app.Get("/api/logs", logHandler.GetBuildLogsFromMongoDB)

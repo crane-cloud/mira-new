@@ -64,7 +64,7 @@ func NewLogHandler(natsClient *common.NATSClient, mongoService *services.MongoLo
 // @Failure 400 {object} models.ErrorResponse "Build ID is required"
 // @Failure 500 {object} models.ErrorResponse "Failed to retrieve logs"
 // @Router /logs/{buildId}/history [get]
-func (h *LogHandler) GetBuildLogs(c *fiber.Ctx) error {
+func (h *LogHandler) GetJetStreamBuildLogs(c *fiber.Ctx) error {
 	buildID := c.Params("buildId")
 	if buildID == "" {
 		return c.Status(400).JSON(models.ErrorResponse{
