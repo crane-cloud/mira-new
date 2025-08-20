@@ -20,4 +20,4 @@ USER ${CNB_USER_ID}:${CNB_GROUP_ID}
 
 # Set required CNB target information
 LABEL io.buildpacks.base.distro.name="ubuntu"
-LABEL io.buildpacks.base.distro.version="22.04"
+LABEL io.buildpacks.base.distro.version="24.04"
