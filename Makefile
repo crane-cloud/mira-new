@@ -2,6 +2,9 @@
 DOCKER_DEV_COMPOSE_FILE := docker-compose.yml
 BINARY_NAME := mira
 DEV_SERVICE := api
+BUILDPACKS_DIR := buildpacks
+
+
 
 help:  ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -80,6 +83,14 @@ check: fmt vet lint test ## Run all code quality checks in Docker
 shell: build-image ## Open shell in development container
 	@ ${INFO} "Opening shell in development container"
 	@ docker compose -f $(DOCKER_DEV_COMPOSE_FILE) exec $(DEV_SERVICE) /bin/bash
+
+build-bp: ## Build the Mira Buildpacks
+	@ ${INFO} "Building the Mira Buildpacks"
+	@ ${INFO} "Building the Node.js Buildpack..."
+	@ cd $(BUILDPACKS_DIR) && go build -o bin/build ./nodejs/cmd/build/main.go
+	@ cd $(BUILDPACKS_DIR) && go build -o bin/detect ./nodejs/cmd/detect/main.go
+	@ ${INFO} "Buildpacks built successfully"
+	@ echo "Run with: ./$(BINARY_NAME) <command>"
 
 
 # set default target
