@@ -92,6 +92,16 @@ build-bp: ## Build the Mira Buildpacks
 	@ ${INFO} "Buildpacks built successfully"
 	@ echo "Run with: ./$(BINARY_NAME) <command>"
 
+build-base-images: ## Build the base images for the builder
+	@ ${INFO} "Building base images for the builder"
+	@ cd $(BUILDPACKS_DIR)/builder && ./build.sh
+	@ ${INFO} "Base images built successfully"
+
+
+create-builder: build-base-images ## Create builder
+	@ ${INFO} "Creating Mira Builder..."
+	@ cd $(BUILDPACKS_DIR)/builder && pack builder create cranecloudplatform/mira-builder:latest --config ./builder.toml
+	@ ${INFO} "Builder created successfully"
 
 # set default target
 .DEFAULT_GOAL := help

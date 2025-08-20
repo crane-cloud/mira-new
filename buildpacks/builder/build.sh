@@ -10,14 +10,14 @@ BUILD_IMAGE=cranecloudplatform/buildpacks-build:latest
 echo "Building base images for Crane Cloud Platform Builder..."
 echo "Using platform: ${PLATFORM}"
 echo "BUILDING ${BUILD_IMAGE}..."
-docker build --platform=${PLATFORM} \
+docker buildx build --platform=${PLATFORM} \
   -t "${BUILD_IMAGE}" \
-  ./build
+  ./build --push
 
 echo "BUILDING ${RUN_IMAGE}..."
-docker build --platform=${PLATFORM} \
+docker buildx build --platform=${PLATFORM} \
   -t "${RUN_IMAGE}" \
-  /run
+  ./run --push
 
 echo
 echo "BASE IMAGES BUILT!"

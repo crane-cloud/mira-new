@@ -14,7 +14,7 @@ version = "0.0.1"
 
 # Base images used to create the builder
 [build]
-image = "cranecloudplatform/builpacks-build:latest"
+image = "cranecloudplatform/buildpacks-build:latest"
 [run]
 [[run.images]]
 image = "cranecloudplatform/buildpacks-run:latest"

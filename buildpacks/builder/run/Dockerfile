@@ -9,8 +9,12 @@ RUN apt-get update && \
 # Create user and group
 ARG cnb_uid=1000
 ARG cnb_gid=1000
-RUN groupadd cnb --gid ${cnb_gid} && \
-  useradd --uid ${cnb_uid} --gid ${cnb_gid} -m -s /bin/bash cnb
+
+ENV CNB_USER_ID=${cnb_uid}
+ENV CNB_GROUP_ID=${cnb_gid}
+
+RUN getent group ${CNB_GROUP_ID} || groupadd -g ${CNB_GROUP_ID} cnb && \
+  id -u ${CNB_USER_ID} &>/dev/null || useradd -u ${CNB_USER_ID} -g ${CNB_GROUP_ID} -m -s /bin/bash cnb
 
 # Set user and group
 USER ${cnb_uid}:${cnb_gid}
