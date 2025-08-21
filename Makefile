@@ -87,8 +87,8 @@ shell: build-image ## Open shell in development container
 build-bp: ## Build the Mira Buildpacks
 	@ ${INFO} "Building the Mira Buildpacks"
 	@ ${INFO} "Building the Node.js Buildpack..."
-	@ cd $(BUILDPACKS_DIR) && go build -o bin/build ./nodejs/cmd/build/main.go
-	@ cd $(BUILDPACKS_DIR) && go build -o bin/detect ./nodejs/cmd/detect/main.go
+	@ cd $(BUILDPACKS_DIR) && go build -o ./nodejs/bin/build ./nodejs/cmd/build/main.go
+	@ cd $(BUILDPACKS_DIR) && go build -o ./nodejs/bin/detect ./nodejs/cmd/detect/main.go
 	@ ${INFO} "Buildpacks built successfully"
 	@ echo "Run with: ./$(BINARY_NAME) <command>"
 
@@ -98,7 +98,7 @@ build-base-images: ## Build the base images for the builder
 	@ ${INFO} "Base images built successfully"
 
 
-create-builder: build-base-images ## Create builder
+create-builder: build-bp build-base-images ## Create builder
 	@ ${INFO} "Creating Mira Builder..."
 	@ cd $(BUILDPACKS_DIR)/builder && pack builder create cranecloudplatform/mira-builder:latest --config ./builder.toml
 	@ ${INFO} "Builder created successfully"

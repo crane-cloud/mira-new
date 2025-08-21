@@ -3,8 +3,8 @@ set -e
 
 PLATFORM=${PLATFORM:-linux/amd64}
 
-RUN_IMAGE=cranecloudplatform/buildpacks-run:latest
-BUILD_IMAGE=cranecloudplatform/buildpacks-build:latest
+RUN_IMAGE=jimjuniorb/buildpacks-run:latest
+BUILD_IMAGE=jimjuniorb/buildpacks-build:latest
 
 # Build the base images
 echo "Building base images for Crane Cloud Platform Builder..."
