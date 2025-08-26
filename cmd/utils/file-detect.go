@@ -29,23 +29,23 @@ type BuildInfo struct {
 
 // Framework build information mapping
 var FrameworkBuildInfo = map[string]BuildInfo{
-	"React":            {"npm run build", "build"},
-	"Create React App": {"npm run build", "build"},
-	"Next.js":          {"npm run build", ".next"},
-	"Vue.js":           {"npm run build", "dist"},
-	"Angular":          {"ng build", "dist"},
-	"Nuxt.js":          {"npm run build", ".nuxt/dist"},
-	"Svelte":           {"npm run build", "build"},
-	"SvelteKit":        {"npm run build", "build"},
-	"Gatsby":           {"gatsby build", "public"},
-	"Remix":            {"npm run build", "build"},
-	"SolidJS":          {"npm run build", "dist"},
-	"Preact":           {"npm run build", "build"},
-	"Vite":             {"vite build", "dist"},
-	"Webpack":          {"npm run build", "dist"},
-	"Rollup":           {"rollup -c", "dist"},
-	"Parcel":           {"parcel build", "dist"},
-	"Snowpack":         {"snowpack build", "build"},
+	"react":            {"build", "build"},
+	"create-react-app": {"build", "build"},
+	"next.js":          {"build", ".next"},
+	"vue.js":           {"build", "dist"},
+	"angular":          {"ng build", "dist"},
+	"nuxt.js":          {"build", ".nuxt/dist"},
+	"svelte":           {"build", "build"},
+	"sveltekit":        {"build", "build"},
+	"gatsby":           {"gatsby build", "public"},
+	"remix":            {"build", "build"},
+	"solidjs":          {"build", "dist"},
+	"preact":           {"build", "build"},
+	"vite":             {"build", "dist"},
+	"webpack":          {"build", "dist"},
+	"rollup":           {"rollup -c", "dist"},
+	"parcel":           {"build", "dist"},
+	"snowpack":         {"build", "build"},
 }
 
 // FrameworkInfo contains detailed information about detected frameworks
@@ -76,48 +76,48 @@ var JSFrameworkRules = []FileDetectionRule{
 	{
 		FilePattern: "package.json",
 		Dependencies: map[string]string{
-			"react":               "React",
-			"@types/react":        "React",
-			"react-dom":           "React",
-			"next":                "Next.js",
-			"vue":                 "Vue.js",
-			"@vue/cli":            "Vue.js",
-			"nuxt":                "Nuxt.js",
-			"svelte":              "Svelte",
-			"@angular/core":       "Angular",
-			"@angular/cli":        "Angular",
-			"gatsby":              "Gatsby",
-			"@remix-run/node":     "Remix",
-			"@remix-run/react":    "Remix",
-			"solid-js":            "SolidJS",
-			"@solidjs/router":     "SolidJS",
-			"preact":              "Preact",
-			"@preact/preset-vite": "Preact",
+			"react":               "react",
+			"@types/react":        "react",
+			"react-dom":           "react",
+			"next":                "next.js",
+			"vue":                 "vue.js",
+			"@vue/cli":            "vue.js",
+			"nuxt":                "nuxt.js",
+			"svelte":              "svelte",
+			"@angular/core":       "angular",
+			"@angular/cli":        "angular",
+			"gatsby":              "gatsby",
+			"@remix-run/node":     "remix",
+			"@remix-run/react":    "remix",
+			"solid-js":            "solidjs",
+			"@solidjs/router":     "solidjs",
+			"preact":              "preact",
+			"@preact/preset-vite": "preact",
 		},
 		ScriptCommands: map[string]string{
-			"vite":               "Vite",
-			"vite build":         "Vite",
-			"vite dev":           "Vite",
-			"vite preview":       "Vite",
-			"webpack":            "Webpack",
-			"webpack-dev-server": "Webpack",
-			"ng ":                "Angular",
-			"ng build":           "Angular",
-			"ng serve":           "Angular",
-			"react-scripts":      "Create React App",
-			"gatsby develop":     "Gatsby",
-			"gatsby build":       "Gatsby",
-			"next build":         "Next.js",
-			"next dev":           "Next.js",
-			"next start":         "Next.js",
-			"nuxt build":         "Nuxt.js",
-			"nuxt dev":           "Nuxt.js",
-			"nuxt generate":      "Nuxt.js",
-			"svelte-kit":         "SvelteKit",
-			"remix build":        "Remix",
-			"remix dev":          "Remix",
-			"parcel":             "Parcel",
-			"rollup":             "Rollup",
+			"vite":               "vite",
+			"vite build":         "vite",
+			"vite dev":           "vite",
+			"vite preview":       "vite",
+			"webpack":            "webpack",
+			"webpack-dev-server": "webpack",
+			"ng ":                "angular",
+			"ng build":           "angular",
+			"ng serve":           "angular",
+			"react-scripts":      "create-react-app",
+			"gatsby develop":     "gatsby",
+			"gatsby build":       "gatsby",
+			"next build":         "next.js",
+			"next dev":           "next.js",
+			"next start":         "next.js",
+			"nuxt build":         "nuxt.js",
+			"nuxt dev":           "nuxt.js",
+			"nuxt generate":      "nuxt.js",
+			"svelte-kit":         "sveltekit",
+			"remix build":        "remix",
+			"remix dev":          "remix",
+			"parcel":             "parcel",
+			"rollup":             "rollup",
 		},
 		Confidence:  "high",
 		Description: "Major JavaScript framework detected from package.json dependencies and scripts",
@@ -125,86 +125,86 @@ var JSFrameworkRules = []FileDetectionRule{
 	// Configuration file based detections
 	{
 		FilePattern: "vite.config.js",
-		Framework:   "Vite",
+		Framework:   "vite",
 		Confidence:  "high",
 		Description: "Vite build tool configuration present",
 	},
 	{
 		FilePattern: "vite.config.ts",
-		Framework:   "Vite",
+		Framework:   "vite",
 		Confidence:  "high",
 		Description: "Vite TypeScript configuration present",
 	},
 	{
 		FilePattern: "webpack.config.js",
-		Framework:   "Webpack",
+		Framework:   "webpack",
 		Confidence:  "medium",
 		Description: "Webpack bundler configuration present",
 	},
 	{
 		FilePattern: "angular.json",
-		Framework:   "Angular",
+		Framework:   "angular",
 		Confidence:  "high",
 		Description: "Angular workspace configuration present",
 	},
 	{
 		FilePattern: "svelte.config.js",
-		Framework:   "Svelte",
+		Framework:   "svelte",
 		Confidence:  "high",
 		Description: "Svelte configuration file present",
 	},
 	{
 		FilePattern: "nuxt.config.js",
-		Framework:   "Nuxt.js",
+		Framework:   "nuxt.js",
 		Confidence:  "high",
 		Description: "Nuxt.js configuration file present",
 	},
 	{
 		FilePattern: "nuxt.config.ts",
-		Framework:   "Nuxt.js",
+		Framework:   "nuxt.js",
 		Confidence:  "high",
 		Description: "Nuxt.js TypeScript configuration present",
 	},
 	{
 		FilePattern: "next.config.js",
-		Framework:   "Next.js",
+		Framework:   "next.js",
 		Confidence:  "high",
 		Description: "Next.js configuration file present",
 	},
 	{
 		FilePattern: "gatsby-config.js",
-		Framework:   "Gatsby",
+		Framework:   "gatsby",
 		Confidence:  "high",
 		Description: "Gatsby configuration file present",
 	},
 	{
 		FilePattern: "vue.config.js",
-		Framework:   "Vue.js",
+		Framework:   "vue.js",
 		Confidence:  "high",
 		Description: "Vue.js configuration file present",
 	},
 	{
 		FilePattern: "remix.config.js",
-		Framework:   "Remix",
+		Framework:   "remix",
 		Confidence:  "high",
 		Description: "Remix configuration file present",
 	},
 	{
 		FilePattern: "solid.config.js",
-		Framework:   "SolidJS",
+		Framework:   "solidjs",
 		Confidence:  "high",
 		Description: "SolidJS configuration file present",
 	},
 	// Additional build tools and frameworks
 	{
 		FilePattern: "rollup.config.js",
-		Framework:   "Rollup",
+		Framework:   "rollup",
 		Confidence:  "high",
 		Description: "Rollup bundler configuration present",
 	},
 	{
 		FilePattern: "snowpack.config.js",
-		Framework:   "Snowpack",
+		Framework:   "snowpack",
 		Confidence:  "high",
 		Description: "Snowpack build tool configuration present",
 	},
@@ -307,21 +307,23 @@ func DetectPackageManager(repoDir string) string {
 
 // DetermineBuildInfo determines build command and directory based on detected frameworks and package manager
 // Priority: Non-React frameworks > React > defaults
-func DetermineBuildInfo(frameworks []FrameworkInfo, repoDir string) (string, string) {
+func DetermineBuildInfo(frameworks []FrameworkInfo, repoDir string) (string, string, string) {
 	defaultBuildDir := "build"
 	packageManager := DetectPackageManager(repoDir)
 	defaultCommand := packageManager + " build"
 
 	// First, look for any non-React framework (these take precedence)
 	for _, framework := range frameworks {
-		if framework.Name != "React" {
+		if framework.Name != "react" {
 			buildInfo := GetFrameworkBuildInfo(framework.Name)
 			// Replace npm run with detected package manager
 			command := buildInfo.Command
 			if strings.HasPrefix(command, "npm run ") {
 				command = strings.Replace(command, "npm run ", packageManager+" ", 1)
+			} else {
+				command = packageManager + " " + buildInfo.Command
 			}
-			return command, buildInfo.Dir
+			return command, buildInfo.Dir, packageManager
 		}
 	}
 
@@ -334,12 +336,12 @@ func DetermineBuildInfo(frameworks []FrameworkInfo, repoDir string) (string, str
 			if strings.HasPrefix(command, "npm run ") {
 				command = strings.Replace(command, "npm run ", packageManager+" ", 1)
 			}
-			return command, buildInfo.Dir
+			return command, buildInfo.Dir, packageManager
 		}
 	}
 
 	// Return defaults if no frameworks found
-	return defaultCommand, defaultBuildDir
+	return defaultCommand, defaultBuildDir, packageManager
 }
 
 // DetectJavaScriptFrameworksLocal performs JavaScript framework detection from local repository
