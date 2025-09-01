@@ -13,19 +13,21 @@ import (
 
 // BuildHandler handles build orchestration
 type BuildHandler struct {
-	gitService    *services.GitService
-	buildService  *services.BuildService
-	deployService *services.DeployService
-	natsClient    *common.NATSClient
+	gitService        *services.GitService
+	buildService      *services.BuildService
+	deployService     *services.DeployService
+	validationService *services.ValidationService
+	natsClient        *common.NATSClient
 }
 
 // NewBuildHandler creates a new build handler with all required services
 func NewBuildHandler(natsClient *common.NATSClient) *BuildHandler {
 	return &BuildHandler{
-		gitService:    services.NewGitService(),
-		buildService:  services.NewBuildService(),
-		deployService: services.NewDeployService(),
-		natsClient:    natsClient,
+		gitService:        services.NewGitService(),
+		buildService:      services.NewBuildService(),
+		deployService:     services.NewDeployService(),
+		validationService: services.NewValidationService(),
+		natsClient:        natsClient,
 	}
 }
 
@@ -103,19 +105,25 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 
 // executeBuildPipeline runs the complete build pipeline
 func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger common.Logger) error {
-	// Step 1: Handle source code (git clone or file download)
+	// Step 1: Validate app name (check if app already exists)
+	err := h.validationService.ValidateAppName(buildSpec, logger)
+	if err != nil {
+		return fmt.Errorf("app name validation failed: %w", err)
+	}
+
+	// Step 2: Handle source code (git clone or file download)
 	sourcePath, err := h.handleSourceCode(buildSpec, logger)
 	if err != nil {
 		return fmt.Errorf("source handling failed: %w", err)
 	}
 
-	// Step 2: Build the image
+	// Step 3: Build the image
 	err = h.buildService.BuildImage(buildSpec, sourcePath, logger)
 	if err != nil {
 		return fmt.Errorf("image build failed: %w", err)
 	}
 
-	// Step 3: Deploy to Crane Cloud
+	// Step 4: Deploy to Crane Cloud
 	err = h.deployService.DeployToCraneCloud(buildSpec, logger)
 	if err != nil {
 		return fmt.Errorf("deployment failed: %w", err)
