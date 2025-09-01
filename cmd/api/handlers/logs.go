@@ -198,6 +198,13 @@ func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
 	// Add filters to response if they were applied
 	if buildID != "" {
 		response["build_id"] = buildID
+
+		// Get build metadata when buildId filter is applied
+		if buildInfo, err := h.mongoService.GetBuildByID(buildID); err != nil {
+			log.Printf("Failed to get build info for %s: %v", buildID, err)
+		} else if buildInfo != nil {
+			response["build_metadata"] = buildInfo
+		}
 	}
 	if level != "" {
 		response["level"] = level
@@ -223,7 +230,7 @@ func (h *LogHandler) GetBuildLogsFromMongoDB(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param projectId query string false "Project ID filter" example("proj-123")
-// @Param appName query string false "App name filter" example("my-app")
+// @Param appName query string false "App name filter (supports both appName and app_name)" example("my-app")
 // @Param status query string false "Build status filter (pending, running, completed, failed)" example("completed")
 // @Param sort query string false "Sort order (desc for newest first, asc for oldest first)" example("desc")
 // @Param page query int false "Page number (default: 1)" example(1)
@@ -236,6 +243,10 @@ func (h *LogHandler) GetBuilds(c *fiber.Ctx) error {
 	// Get query parameters
 	projectID := c.Query("projectId")
 	appName := c.Query("appName")
+	// Support both camelCase and snake_case for app name
+	if appName == "" {
+		appName = c.Query("app_name")
+	}
 	status := c.Query("status")
 	sortOrder := c.Query("sort", "desc") // Default to descending (newest first)
 

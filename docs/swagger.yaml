@@ -6,7 +6,7 @@ definitions:
         example: https://github.com/user/repo
         type: string
     required:
-    - repo_url
+      - repo_url
     type: object
   models.BuildData:
     properties:
@@ -30,13 +30,13 @@ definitions:
         type: integer
       logs:
         items:
-          $ref: '#/definitions/models.LogMessage'
+          $ref: "#/definitions/models.LogMessage"
         type: array
     type: object
   models.BuildResponse:
     properties:
       data:
-        $ref: '#/definitions/models.BuildData'
+        $ref: "#/definitions/models.BuildData"
       message:
         example: Image generation started
         type: string
@@ -72,7 +72,7 @@ definitions:
     properties:
       builds:
         items:
-          $ref: '#/definitions/models.BuildStatusResponse'
+          $ref: "#/definitions/models.BuildStatusResponse"
         type: array
       count:
         example: 10
@@ -192,12 +192,12 @@ definitions:
         example: false
         type: boolean
     required:
-    - access_token
-    - build_command
-    - name
-    - output_directory
-    - project_id
-    - repo
+      - access_token
+      - build_command
+      - name
+      - output_directory
+      - project_id
+      - repo
     type: object
 host: localhost:3000
 info:
@@ -215,17 +215,18 @@ paths:
   /auth/github/callback:
     get:
       consumes:
-      - application/json
-      description: Handles the callback from GitHub OAuth and sets authentication
+        - application/json
+      description:
+        Handles the callback from GitHub OAuth and sets authentication
         cookie
       parameters:
-      - description: OAuth authorization code
-        in: query
-        name: code
-        required: true
-        type: string
+        - description: OAuth authorization code
+          in: query
+          name: code
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "302":
           description: Redirect to application
@@ -234,21 +235,21 @@ paths:
         "400":
           description: Missing authorization code
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: OAuth exchange failed
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: GitHub OAuth callback
       tags:
-      - auth
+        - auth
   /auth/github/login:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Redirects to GitHub OAuth authorization page
       produces:
-      - application/json
+        - application/json
       responses:
         "302":
           description: Redirect to GitHub OAuth
@@ -256,21 +257,22 @@ paths:
             type: string
       summary: GitHub OAuth login
       tags:
-      - auth
+        - auth
   /auth/gitlab/callback:
     get:
       consumes:
-      - application/json
-      description: Handles the callback from GitLab OAuth and sets authentication
+        - application/json
+      description:
+        Handles the callback from GitLab OAuth and sets authentication
         cookie
       parameters:
-      - description: OAuth authorization code
-        in: query
-        name: code
-        required: true
-        type: string
+        - description: OAuth authorization code
+          in: query
+          name: code
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "302":
           description: Redirect to application
@@ -279,21 +281,21 @@ paths:
         "400":
           description: Missing authorization code
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: OAuth exchange failed
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: GitLab OAuth callback
       tags:
-      - auth
+        - auth
   /auth/gitlab/login:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Redirects to GitLab OAuth authorization page
       produces:
-      - application/json
+        - application/json
       responses:
         "302":
           description: Redirect to GitLab OAuth
@@ -301,229 +303,232 @@ paths:
             type: string
       summary: GitLab OAuth login
       tags:
-      - auth
+        - auth
   /builds:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves builds from MongoDB storage with optional filters
       parameters:
-      - description: Project ID filter
-        example: '"proj-123"'
-        in: query
-        name: projectId
-        type: string
-      - description: App name filter
-        example: '"my-app"'
-        in: query
-        name: appName
-        type: string
-      - description: Build status filter (pending, running, completed, failed)
-        example: '"completed"'
-        in: query
-        name: status
-        type: string
-      - description: Sort order (desc for newest first, asc for oldest first)
-        example: '"desc"'
-        in: query
-        name: sort
-        type: string
-      - description: 'Page number (default: 1)'
-        example: 1
-        in: query
-        name: page
-        type: integer
-      - description: 'Number of builds per page (default: 10, max: 100)'
-        example: 10
-        in: query
-        name: limit
-        type: integer
+        - description: Project ID filter
+          example: '"proj-123"'
+          in: query
+          name: projectId
+          type: string
+        - description: App name filter
+          example: '"my-app"'
+          in: query
+          name: appName
+          type: string
+        - description: Build status filter (pending, running, completed, failed)
+          example: '"completed"'
+          in: query
+          name: status
+          type: string
+        - description: Sort order (desc for newest first, asc for oldest first)
+          example: '"desc"'
+          in: query
+          name: sort
+          type: string
+        - description: "Page number (default: 1)"
+          example: 1
+          in: query
+          name: page
+          type: integer
+        - description: "Number of builds per page (default: 10, max: 100)"
+          example: 10
+          in: query
+          name: limit
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Builds retrieved successfully
           schema:
-            $ref: '#/definitions/models.BuildsResponse'
+            $ref: "#/definitions/models.BuildsResponse"
         "400":
           description: Invalid query parameters
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: Failed to retrieve builds
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: Get builds with filters
       tags:
-      - builds
+        - builds
   /images/containerize:
     post:
       consumes:
-      - application/json
-      description: Converts source code from Git repository into a Docker image and
+        - application/json
+      description:
+        Converts source code from Git repository into a Docker image and
         deploys to Crane Cloud
       parameters:
-      - description: Build configuration
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/schemas.GenerateImageRequest'
+        - description: Build configuration
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/schemas.GenerateImageRequest"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Build started successfully
           schema:
-            $ref: '#/definitions/models.BuildResponse'
+            $ref: "#/definitions/models.BuildResponse"
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: Containerize source code
       tags:
-      - images
+        - images
   /images/detect:
     post:
       consumes:
-      - application/json
-      description: Analyzes package.json and configuration files to detect JavaScript
+        - application/json
+      description:
+        Analyzes package.json and configuration files to detect JavaScript
         frameworks
       parameters:
-      - description: Repository URL
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.DetectFrameworkRequest'
+        - description: Repository URL
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/handlers.DetectFrameworkRequest"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Detected JavaScript frameworks
           schema:
-            $ref: '#/definitions/models.FrameworkDetectionResponse'
+            $ref: "#/definitions/models.FrameworkDetectionResponse"
         "400":
           description: Invalid request or not a GitHub repository
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "404":
           description: Repository not found
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: Detect JavaScript framework from repository
       tags:
-      - images
+        - images
   /logs:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves logs from MongoDB storage with optional filters
       parameters:
-      - description: Build ID filter
-        example: '"550e8400-e29b-41d4-a716-446655440000"'
-        in: query
-        name: buildId
-        type: string
-      - description: Log level filter (info, error, debug)
-        example: '"info"'
-        in: query
-        name: level
-        type: string
-      - description: Build step filter
-        example: '"clone"'
-        in: query
-        name: step
-        type: string
-      - description: Start date filter (ISO 8601 format)
-        example: '"2024-01-01T00:00:00Z"'
-        in: query
-        name: startDate
-        type: string
-      - description: End date filter (ISO 8601 format)
-        example: '"2024-01-31T23:59:59Z"'
-        in: query
-        name: endDate
-        type: string
-      - description: Sort order (asc for oldest first, desc for newest first)
-        example: '"asc"'
-        in: query
-        name: sort
-        type: string
-      - description: 'Page number (default: 1)'
-        example: 1
-        in: query
-        name: page
-        type: integer
-      - description: 'Number of logs per page (default: 100, max: 1000)'
-        example: 100
-        in: query
-        name: limit
-        type: integer
+        - description: Build ID filter
+          example: '"550e8400-e29b-41d4-a716-446655440000"'
+          in: query
+          name: buildId
+          type: string
+        - description: Log level filter (info, error, debug)
+          example: '"info"'
+          in: query
+          name: level
+          type: string
+        - description: Build step filter
+          example: '"clone"'
+          in: query
+          name: step
+          type: string
+        - description: Start date filter (ISO 8601 format)
+          example: '"2024-01-01T00:00:00Z"'
+          in: query
+          name: startDate
+          type: string
+        - description: End date filter (ISO 8601 format)
+          example: '"2024-01-31T23:59:59Z"'
+          in: query
+          name: endDate
+          type: string
+        - description: Sort order (asc for oldest first, desc for newest first)
+          example: '"asc"'
+          in: query
+          name: sort
+          type: string
+        - description: "Page number (default: 1)"
+          example: 1
+          in: query
+          name: page
+          type: integer
+        - description: "Number of logs per page (default: 100, max: 1000)"
+          example: 100
+          in: query
+          name: limit
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Build logs retrieved successfully
           schema:
-            $ref: '#/definitions/models.BuildLogsResponse'
+            $ref: "#/definitions/models.BuildLogsResponse"
         "400":
           description: Invalid query parameters
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: Failed to retrieve logs
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: Get build logs from MongoDB
       tags:
-      - logs
+        - logs
   /logs/{buildId}/history:
     get:
       consumes:
-      - application/json
-      description: Retrieves all historical logs for a specific build from JetStream
+        - application/json
+      description:
+        Retrieves all historical logs for a specific build from JetStream
         storage
       parameters:
-      - description: Build ID
-        example: '"550e8400-e29b-41d4-a716-446655440000"'
-        in: path
-        name: buildId
-        required: true
-        type: string
+        - description: Build ID
+          example: '"550e8400-e29b-41d4-a716-446655440000"'
+          in: path
+          name: buildId
+          required: true
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Build logs retrieved successfully
           schema:
-            $ref: '#/definitions/models.BuildLogsResponse'
+            $ref: "#/definitions/models.BuildLogsResponse"
         "400":
           description: Build ID is required
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: Failed to retrieve logs
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: Get build logs history
       tags:
-      - logs
+        - logs
   /logs/stats:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Retrieves statistics about logs stored in MongoDB
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Log statistics
@@ -533,67 +538,67 @@ paths:
         "500":
           description: Failed to retrieve statistics
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       summary: Get log statistics
       tags:
-      - logs
+        - logs
   /user/github/repos:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Fetches repositories for the authenticated GitHub user
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of repositories
           schema:
             items:
-              $ref: '#/definitions/models.GitHubRepository'
+              $ref: "#/definitions/models.GitHubRepository"
             type: array
         "401":
           description: Unauthorized - no access token
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: GitHub API request failed
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       security:
-      - ApiKeyAuth: []
+        - ApiKeyAuth: []
       summary: Get GitHub repositories
       tags:
-      - user
+        - user
   /user/gitlab/repos:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Fetches repositories for the authenticated GitLab user
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: List of repositories
           schema:
             items:
-              $ref: '#/definitions/models.GitLabProject'
+              $ref: "#/definitions/models.GitLabProject"
             type: array
         "401":
           description: Unauthorized - no access token
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
         "500":
           description: GitLab API request failed
           schema:
-            $ref: '#/definitions/models.ErrorResponse'
+            $ref: "#/definitions/models.ErrorResponse"
       security:
-      - ApiKeyAuth: []
+        - ApiKeyAuth: []
       summary: Get GitLab repositories
       tags:
-      - user
+        - user
 schemes:
-- http
-- https
+  - http
+  - https
 securityDefinitions:
   ApiKeyAuth:
     in: header

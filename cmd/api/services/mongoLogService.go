@@ -460,3 +460,28 @@ func (s *MongoLogService) GetBuildsWithFilters(projectID, appName, status string
 
 	return builds, total, nil
 }
+
+// GetBuildByID retrieves a single build by its ID
+func (s *MongoLogService) GetBuildByID(buildID string) (*models.BuildStatusResponse, error) {
+	buildsCollection := s.mongoConfig.GetCollection("builds")
+	if buildsCollection == nil {
+		return nil, fmt.Errorf("MongoDB builds collection is not available")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"build_id": buildID}
+	var mongoBuild models.MongoBuildStatus
+
+	err := buildsCollection.FindOne(ctx, filter).Decode(&mongoBuild)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // Build not found, return nil
+		}
+		return nil, fmt.Errorf("failed to find build: %v", err)
+	}
+
+	buildResponse := mongoBuild.ToBuildStatusResponse()
+	return &buildResponse, nil
+}

@@ -249,18 +249,23 @@ func (c *NATSClient) GetBuildLogs(buildID string) ([]LogMessage, error) {
 	}
 
 	subject := BuildLogsSubject(buildID)
-	streamName := "MIRA_LOGS" // Default stream name
 
-	// Try to ensure the stream exists, but don't fail if it doesn't
-	err = c.ensureLogStream(js, streamName)
-	if err != nil {
-		log.Printf("Warning: Failed to ensure log stream: %v", err)
-		// Continue anyway, we'll try to find existing streams
+	// Resolve stream owning this subject if it exists; otherwise ensure default and resolve again
+	resolvedStreamName, _ := js.StreamNameBySubject(subject)
+	if resolvedStreamName == "" {
+		defaultStreamName := "MIRA_LOGS"
+		if err := c.ensureLogStream(js, defaultStreamName); err != nil {
+			log.Printf("Warning: Failed to ensure log stream: %v", err)
+		}
+		resolvedStreamName, _ = js.StreamNameBySubject(subject)
+		if resolvedStreamName == "" {
+			return nil, fmt.Errorf("log stream not found for subject %s", subject)
+		}
 	}
 
 	// Create a unique durable consumer to ensure DeliverAll per request
 	consumerName := fmt.Sprintf("hist_%s_%d", buildID, time.Now().UnixNano())
-	_, err = js.AddConsumer(streamName, &nats.ConsumerConfig{
+	_, err = js.AddConsumer(resolvedStreamName, &nats.ConsumerConfig{
 		Durable:           consumerName,
 		FilterSubject:     subject,
 		AckPolicy:         nats.AckExplicitPolicy,
@@ -270,10 +275,10 @@ func (c *NATSClient) GetBuildLogs(buildID string) ([]LogMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to add consumer: %v", err)
 	}
-	defer js.DeleteConsumer(streamName, consumerName)
+	defer js.DeleteConsumer(resolvedStreamName, consumerName)
 
 	// Subscribe to the durable consumer bound to the stream
-	sub, err := js.PullSubscribe(subject, consumerName, nats.BindStream(streamName))
+	sub, err := js.PullSubscribe(subject, consumerName, nats.BindStream(resolvedStreamName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %v", err)
 	}
