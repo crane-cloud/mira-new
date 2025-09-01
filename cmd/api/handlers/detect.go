@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"mira/cmd/api/models"
@@ -128,8 +129,19 @@ func DetectFramework(c *fiber.Ctx) error {
 		})
 	}
 
+	// If there are multiple frameworks and React is among them, remove React
+	if len(detectedFrameworks) > 1 {
+		var filteredFrameworks []utils.FrameworkInfo
+		for _, framework := range detectedFrameworks {
+			if framework.Name != "react" {
+				filteredFrameworks = append(filteredFrameworks, framework)
+			}
+		}
+		detectedFrameworks = filteredFrameworks
+	}
+
 	// Determine build settings based on detected frameworks and package manager
-	primaryCommand, primaryBuildDir := utils.DetermineBuildInfo(detectedFrameworks, repoDir)
+	primaryCommand, primaryBuildDir, packageManager := utils.DetermineBuildInfo(detectedFrameworks, repoDir)
 
 	// Prepare response
 	frameworksMap := make(map[string]interface{})
@@ -144,6 +156,11 @@ func DetectFramework(c *fiber.Ctx) error {
 		frameworksMap[framework.Name] = frameworkData
 	}
 
+	var primaryFramework string
+	if len(detectedFrameworks) > 0 {
+		primaryFramework = strings.ToLower(detectedFrameworks[0].Name)
+	}
+
 	var message string
 	if len(detectedFrameworks) > 0 {
 		message = "JavaScript frameworks detected successfully"
@@ -152,10 +169,13 @@ func DetectFramework(c *fiber.Ctx) error {
 	}
 
 	response := map[string]interface{}{
-		"message":    message,
-		"frameworks": frameworksMap,
-		"build_dir":  primaryBuildDir,
-		"command":    primaryCommand,
+		"message":         message,
+		"frameworks":      frameworksMap,
+		"framework":       primaryFramework,
+		"build_dir":       primaryBuildDir,
+		"command":         primaryCommand,
+		"package_manager": packageManager,
+		"install_command": packageManager + " install",
 	}
 
 	log.Printf("Successfully detected %d JS frameworks for %s/%s", len(detectedFrameworks), owner, repo)

@@ -1,104 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <title>Upload ZIP and Stream Logs</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-    }
-
-    #logs {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      background: #f9f9f9;
-      white-space: pre-wrap;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-  </style>
-</head>
-
-<body>
-  <h1>Upload a ZIP File</h1>
-  <form id="uploadForm">
-    <label>
-      Name:
-      <input type="text" name="name" required />
-    </label>
-    <br><br>
-
-    <input type="hidden" name="type" value="file" />
-
-    <label>
-      ZIP File:
-      <input type="file" name="file" accept=".zip" required />
-    </label>
-    <br><br>
-
-    <button type="submit">Send</button>
-  </form>
-
-  <h2>Live Logs</h2>
-  <div id="logs">Waiting for connection...</div>
-
-  <script>
-    const form = document.getElementById("uploadForm");
-    const logs = document.getElementById("logs");
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      logs.textContent = "Uploading...";
-
-      const formData = new FormData(form);
-
-      try {
-        const response = await fetch("http://localhost:3000/images/containerize", {
-          method: "POST",
-          body: formData,
-        });
-
-        const result = await response.json();
-        console.log("Response:", result);
-
-        if (result?.data?.wspath) {
-          logs.textContent = "Connected. Listening for logs...\n";
-
-          // Convert the WS path to proper ws:// URL
-          const wsUrl = `ws://${result.data.wspath}`;
-
-          const socket = new WebSocket(wsUrl);
-
-          socket.onopen = () => {
-            logs.textContent += "WebSocket connected.\n";
-          };
-
-          socket.onmessage = (event) => {
-            logs.textContent += event.data + "\n";
-            logs.scrollTop = logs.scrollHeight;
-          };
-
-          socket.onerror = (err) => {
-            logs.textContent += "WebSocket error.\n";
-            console.error("WS error:", err);
-          };
-
-          socket.onclose = () => {
-            logs.textContent += "WebSocket closed.\n";
-          };
-        } else {
-          logs.textContent = "Invalid response from server.";
-        }
-
-      } catch (err) {
-        console.error(err);
-        logs.textContent = "Upload failed.";
+  <head>
+    <meta charset="UTF-8" />
+    <title>Upload ZIP and Stream Logs</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 20px;
       }
-    });
-  </script>
-</body>
 
+      #logs {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background: #f9f9f9;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Upload a ZIP File</h1>
+    <form id="uploadForm">
+      <label>
+        Name:
+        <input type="text" name="name" required />
+      </label>
+      <br /><br />
+
+      <input type="hidden" name="type" value="file" />
+
+      <label>
+        ZIP File:
+        <input type="file" name="file" accept=".zip" required />
+      </label>
+      <br /><br />
+
+      <button type="submit">Send</button>
+    </form>
+
+    <h2>Live Logs</h2>
+    <div id="logs">Waiting for connection...</div>
+
+    <script>
+      const form = document.getElementById("uploadForm");
+      const logs = document.getElementById("logs");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        logs.textContent = "Uploading...";
+
+        const formData = new FormData(form);
+
+        try {
+          const response = await fetch(
+            "http://localhost:3000/images/containerize",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+          const result = await response.json();
+          console.log("Response:", result);
+
+          if (result?.data?.wspath) {
+            logs.textContent = "Connected. Listening for logs...\n";
+
+            // Convert the WS path to proper ws:// URL
+            const wsUrl = `ws://${result.data.wspath}`;
+
+            const socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+              logs.textContent += "WebSocket connected.\n";
+            };
+
+            socket.onmessage = (event) => {
+              try {
+                const logData = JSON.parse(event.data);
+
+                // Handle build completion messages
+                if (logData.type === "build_completion") {
+                  const timestamp = logData.timestamp
+                    ? new Date(logData.timestamp).toLocaleTimeString()
+                    : "";
+
+                  if (logData.status === "completed") {
+                    logs.textContent += `🎉 [${timestamp}] BUILD COMPLETED SUCCESSFULLY!\n`;
+                    logs.textContent += `📦 Image: ${
+                      logData.image_name || "N/A"
+                    }\n`;
+                    logs.textContent += `✅ ${logData.message}\n`;
+                  } else if (logData.status === "failed") {
+                    logs.textContent += `💥 [${timestamp}] BUILD FAILED!\n`;
+                    logs.textContent += `❌ ${logData.message}\n`;
+                    if (logData.error) {
+                      logs.textContent += `🔍 Error details: ${logData.error}\n`;
+                    }
+                  }
+                } else {
+                  // Handle regular log messages
+                  logs.textContent += event.data + "\n";
+                }
+              } catch (e) {
+                // If it's not JSON, just display as raw text
+                logs.textContent += event.data + "\n";
+              }
+              logs.scrollTop = logs.scrollHeight;
+            };
+
+            socket.onerror = (err) => {
+              logs.textContent += "WebSocket error.\n";
+              console.error("WS error:", err);
+            };
+
+            socket.onclose = () => {
+              logs.textContent += "WebSocket closed.\n";
+            };
+          } else {
+            logs.textContent = "Invalid response from server.";
+          }
+        } catch (err) {
+          console.error(err);
+          logs.textContent = "Upload failed.";
+        }
+      });
+    </script>
+  </body>
 </html>

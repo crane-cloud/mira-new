@@ -9,8 +9,9 @@ const (
 	SUBJECT_BUILD_REQUEST = "mira.build.requests"
 
 	// Subject patterns (use with fmt.Sprintf)
-	SUBJECT_BUILD_STATUS_PATTERN = "mira.status.%s" // %s = buildID
-	SUBJECT_BUILD_LOGS_PATTERN   = "mira.logs.%s"   // %s = buildID
+	SUBJECT_BUILD_STATUS_PATTERN     = "mira.status.%s"     // %s = buildID
+	SUBJECT_BUILD_LOGS_PATTERN       = "mira.logs.%s"       // %s = buildID
+	SUBJECT_BUILD_COMPLETION_PATTERN = "mira.completion.%s" // %s = buildID
 )
 
 // Subject builders for dynamic subjects
@@ -25,19 +26,26 @@ func BuildLogsSubject(buildID string) string {
 	return fmt.Sprintf(SUBJECT_BUILD_LOGS_PATTERN, buildID)
 }
 
+// BuildCompletionSubject returns the subject for build completion notifications for a specific build
+func BuildCompletionSubject(buildID string) string {
+	return fmt.Sprintf(SUBJECT_BUILD_COMPLETION_PATTERN, buildID)
+}
+
 // NATSSubjects contains all NATS subject information for documentation
 type NATSSubjects struct {
-	BuildRequests string
-	BuildStatus   string
-	BuildLogs     string
+	BuildRequests   string
+	BuildStatus     string
+	BuildLogs       string
+	BuildCompletion string
 }
 
 // GetSubjectsDocumentation returns documentation about all NATS subjects
 func GetSubjectsDocumentation() NATSSubjects {
 	return NATSSubjects{
-		BuildRequests: SUBJECT_BUILD_REQUEST + " - Queue for containerization build requests",
-		BuildStatus:   SUBJECT_BUILD_STATUS_PATTERN + " - Build status updates (running, completed, failed)",
-		BuildLogs:     SUBJECT_BUILD_LOGS_PATTERN + " - Real-time build logs stream",
+		BuildRequests:   SUBJECT_BUILD_REQUEST + " - Queue for containerization build requests",
+		BuildStatus:     SUBJECT_BUILD_STATUS_PATTERN + " - Build status updates (running, completed, failed)",
+		BuildLogs:       SUBJECT_BUILD_LOGS_PATTERN + " - Real-time build logs stream",
+		BuildCompletion: SUBJECT_BUILD_COMPLETION_PATTERN + " - Build completion notifications for WebSocket clients",
 	}
 }
 
@@ -49,6 +57,8 @@ func ValidateSubject(subject string) bool {
 	case len(subject) > len("mira.status.") && subject[:len("mira.status.")] == "mira.status.":
 		return true
 	case len(subject) > len("mira.logs.") && subject[:len("mira.logs.")] == "mira.logs.":
+		return true
+	case len(subject) > len("mira.completion.") && subject[:len("mira.completion.")] == "mira.completion.":
 		return true
 	default:
 		return false

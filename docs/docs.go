@@ -157,6 +157,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/builds": {
+            "get": {
+                "description": "Retrieves builds from MongoDB storage with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Get builds with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"proj-123\"",
+                        "description": "Project ID filter",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"my-app\"",
+                        "description": "App name filter",
+                        "name": "appName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"completed\"",
+                        "description": "Build status filter (pending, running, completed, failed)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"desc\"",
+                        "description": "Sort order (desc for newest first, asc for oldest first)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Number of builds per page (default: 10, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Builds retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BuildsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve builds",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/images/containerize": {
             "post": {
                 "description": "Converts source code from Git repository into a Docker image and deploys to Crane Cloud",
@@ -248,6 +327,174 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/logs": {
+            "get": {
+                "description": "Retrieves logs from MongoDB storage with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get build logs from MongoDB",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Build ID filter",
+                        "name": "buildId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"info\"",
+                        "description": "Log level filter (info, error, debug)",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"clone\"",
+                        "description": "Build step filter",
+                        "name": "step",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-01T00:00:00Z\"",
+                        "description": "Start date filter (ISO 8601 format)",
+                        "name": "startDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-31T23:59:59Z\"",
+                        "description": "End date filter (ISO 8601 format)",
+                        "name": "endDate",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"asc\"",
+                        "description": "Sort order (asc for oldest first, desc for newest first)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 100,
+                        "description": "Number of logs per page (default: 100, max: 1000)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Build logs retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BuildLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve logs",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/logs/stats": {
+            "get": {
+                "description": "Retrieves statistics about logs stored in MongoDB",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get log statistics",
+                "responses": {
+                    "200": {
+                        "description": "Log statistics",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve statistics",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/logs/{buildId}/history": {
+            "get": {
+                "description": "Retrieves all historical logs for a specific build from JetStream storage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "logs"
+                ],
+                "summary": "Get build logs history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Build ID",
+                        "name": "buildId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Build logs retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BuildLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Build ID is required",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve logs",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -372,6 +619,25 @@ const docTemplate = `{
                 }
             }
         },
+        "models.BuildLogsResponse": {
+            "type": "object",
+            "properties": {
+                "build_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "count": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LogMessage"
+                    }
+                }
+            }
+        },
         "models.BuildResponse": {
             "type": "object",
             "properties": {
@@ -381,6 +647,74 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Image generation started"
+                }
+            }
+        },
+        "models.BuildStatusResponse": {
+            "type": "object",
+            "properties": {
+                "app_name": {
+                    "type": "string",
+                    "example": "my-app"
+                },
+                "build_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "completed_at": {
+                    "type": "string",
+                    "example": "2024-01-01T12:30:00Z"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Build failed"
+                },
+                "image_name": {
+                    "type": "string",
+                    "example": "my-app:latest"
+                },
+                "project_id": {
+                    "type": "string",
+                    "example": "proj-123"
+                },
+                "started_at": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
+                }
+            }
+        },
+        "models.BuildsResponse": {
+            "type": "object",
+            "properties": {
+                "builds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.BuildStatusResponse"
+                    }
+                },
+                "count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "pages": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 50
                 }
             }
         },
@@ -461,6 +795,31 @@ const docTemplate = `{
                 "web_url": {
                     "type": "string",
                     "example": "https://gitlab.com/user/my-project"
+                }
+            }
+        },
+        "models.LogMessage": {
+            "type": "object",
+            "properties": {
+                "build_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "level": {
+                    "type": "string",
+                    "example": "info"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Build started"
+                },
+                "step": {
+                    "type": "string",
+                    "example": "clone"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
                 }
             }
         },

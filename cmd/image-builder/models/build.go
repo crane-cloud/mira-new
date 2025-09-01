@@ -16,6 +16,8 @@ type BuildSpec struct {
 // BuildStatus represents the status of a build operation
 type BuildStatus struct {
 	BuildID     string    `json:"build_id"`
+	ProjectID   string    `json:"project_id,omitempty"`
+	AppName     string    `json:"app_name,omitempty"`
 	Status      string    `json:"status"` // "pending", "running", "completed", "failed"
 	StartedAt   time.Time `json:"started_at"`
 	CompletedAt time.Time `json:"completed_at,omitempty"`

@@ -66,9 +66,33 @@ type LogMessage struct {
 // BuildStatus represents the current status of a build
 type BuildStatus struct {
 	BuildID     string    `json:"build_id"`
+	ProjectID   string    `json:"project_id,omitempty"`
+	AppName     string    `json:"app_name,omitempty"`
 	Status      string    `json:"status"` // pending, running, completed, failed
 	StartedAt   time.Time `json:"started_at,omitempty"`
 	CompletedAt time.Time `json:"completed_at,omitempty"`
 	Error       string    `json:"error,omitempty"`
 	ImageName   string    `json:"image_name,omitempty"`
+}
+
+// BuildCompletionMessage represents a build completion notification sent via WebSocket
+type BuildCompletionMessage struct {
+	Type      string    `json:"type"` // "build_completion"
+	BuildID   string    `json:"build_id"`
+	Status    string    `json:"status"`  // "completed" or "failed"
+	Message   string    `json:"message"` // Human readable message
+	Error     string    `json:"error,omitempty"`
+	ImageName string    `json:"image_name,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// Logger interface defines the methods that any logger must implement
+type Logger interface {
+	Info(message string)
+	Error(message string)
+	Debug(message string)
+	InfoWithStep(step, message string)
+	ErrorWithStep(step, message string)
+	Log(fields map[string]string, message string)
+	Write(p []byte) (n int, err error)
 }

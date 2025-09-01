@@ -25,7 +25,7 @@ func NewGitService() *GitService {
 }
 
 // CloneRepository clones a git repository using improved logic from utils
-func (g *GitService) CloneRepository(buildSpec *models.BuildSpec, logger *common.NATSLogger) (string, error) {
+func (g *GitService) CloneRepository(buildSpec *models.BuildSpec, logger common.Logger) (string, error) {
 	destPath := "/usr/local/crane/git/" + buildSpec.Name
 
 	// Ensure directory exists
@@ -64,7 +64,7 @@ func (g *GitService) CloneRepository(buildSpec *models.BuildSpec, logger *common
 }
 
 // HandleFileSource handles file download and extraction
-func (g *GitService) HandleFileSource(buildSpec *models.BuildSpec, logger *common.NATSLogger) (string, error) {
+func (g *GitService) HandleFileSource(buildSpec *models.BuildSpec, logger common.Logger) (string, error) {
 	// Download the file
 	fmt.Println("Downloading file")
 	err := g.downloadFile(buildSpec)

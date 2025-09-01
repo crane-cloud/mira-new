@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -47,6 +49,18 @@ func NewNATSClient() (*NATSClient, error) {
 // GetConnection returns the NATS connection
 func (c *NATSClient) GetConnection() *nats.Conn {
 	return c.conn
+}
+
+// GetJetStream returns the JetStream context
+//
+// This method provides access to the JetStream context for advanced
+// operations like stream management, consumer creation, and message
+// retrieval from persistent storage.
+func (c *NATSClient) GetJetStream() (nats.JetStreamContext, error) {
+	if !c.IsConnected() {
+		return nil, fmt.Errorf("NATS connection is not healthy")
+	}
+	return c.conn.JetStream()
 }
 
 // Close closes the NATS connection
@@ -218,4 +232,223 @@ func (c *NATSClient) SubscribeToLogs(buildID string, handler func(*LogMessage)) 
 		}
 		handler(&logMsg)
 	})
+}
+
+// PublishBuildCompletion publishes a build completion notification
+func (c *NATSClient) PublishBuildCompletion(completion *BuildCompletionMessage) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return c.PublishBuildCompletionWithContext(ctx, completion)
+}
+
+// PublishBuildCompletionWithContext publishes a build completion notification with context support
+func (c *NATSClient) PublishBuildCompletionWithContext(ctx context.Context, completion *BuildCompletionMessage) error {
+	if !c.IsConnected() {
+		return fmt.Errorf("NATS connection is not healthy")
+	}
+
+	data, err := json.Marshal(completion)
+	if err != nil {
+		return fmt.Errorf("failed to marshal build completion: %v", err)
+	}
+
+	subject := BuildCompletionSubject(completion.BuildID)
+
+	// Retry logic with exponential backoff
+	maxRetries := 2
+	baseDelay := 50 * time.Millisecond
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("completion publish cancelled: %v", ctx.Err())
+		default:
+		}
+
+		err = c.conn.Publish(subject, data)
+		if err == nil {
+			return nil
+		}
+
+		if attempt == maxRetries-1 {
+			break // Last attempt failed, don't wait
+		}
+
+		// Exponential backoff
+		delay := baseDelay * time.Duration(1<<attempt)
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("completion publish cancelled during retry: %v", ctx.Err())
+		case <-time.After(delay):
+		}
+	}
+
+	return fmt.Errorf("failed to publish build completion after %d attempts: %v", maxRetries, err)
+}
+
+// SubscribeToBuildCompletion subscribes to build completion notifications for a specific build
+func (c *NATSClient) SubscribeToBuildCompletion(buildID string, handler func(*BuildCompletionMessage)) (*nats.Subscription, error) {
+	subject := BuildCompletionSubject(buildID)
+	return c.conn.Subscribe(subject, func(msg *nats.Msg) {
+		var completion BuildCompletionMessage
+		if err := json.Unmarshal(msg.Data, &completion); err != nil {
+			fmt.Printf("Failed to unmarshal build completion message: %v\n", err)
+			return
+		}
+		handler(&completion)
+	})
+}
+
+// GetBuildLogs retrieves all logs for a specific build from JetStream
+//
+// This method fetches all historical log messages for a specific build ID
+// from the JetStream storage. It creates a temporary consumer to read
+// all messages from the build's log subject and returns them as an array.
+//
+// The method automatically ensures the log stream exists and cleans up
+// the temporary consumer after use.
+func (c *NATSClient) GetBuildLogs(buildID string) ([]LogMessage, error) {
+	js, err := c.GetJetStream()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get JetStream context: %v", err)
+	}
+
+	subject := BuildLogsSubject(buildID)
+
+	// Resolve stream owning this subject if it exists; otherwise ensure default and resolve again
+	resolvedStreamName, _ := js.StreamNameBySubject(subject)
+	if resolvedStreamName == "" {
+		defaultStreamName := "MIRA_LOGS"
+		if err := c.ensureLogStream(js, defaultStreamName); err != nil {
+			log.Printf("Warning: Failed to ensure log stream: %v", err)
+		}
+		resolvedStreamName, _ = js.StreamNameBySubject(subject)
+		if resolvedStreamName == "" {
+			return nil, fmt.Errorf("log stream not found for subject %s", subject)
+		}
+	}
+
+	// Create a unique durable consumer to ensure DeliverAll per request
+	consumerName := fmt.Sprintf("hist_%s_%d", buildID, time.Now().UnixNano())
+	_, err = js.AddConsumer(resolvedStreamName, &nats.ConsumerConfig{
+		Durable:           consumerName,
+		FilterSubject:     subject,
+		AckPolicy:         nats.AckExplicitPolicy,
+		DeliverPolicy:     nats.DeliverAllPolicy,
+		InactiveThreshold: 30 * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add consumer: %v", err)
+	}
+	defer js.DeleteConsumer(resolvedStreamName, consumerName)
+
+	// Subscribe to the durable consumer bound to the stream
+	sub, err := js.PullSubscribe(subject, consumerName, nats.BindStream(resolvedStreamName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create subscription: %v", err)
+	}
+	defer sub.Unsubscribe()
+
+	// Fetch all available messages
+	var logs []LogMessage
+	batchSize := 100
+
+	for {
+		messages, err := sub.Fetch(batchSize, nats.MaxWait(5*time.Second))
+		if err != nil {
+			if err == nats.ErrTimeout {
+				break // No more messages
+			}
+			return nil, fmt.Errorf("failed to fetch messages: %v", err)
+		}
+
+		if len(messages) == 0 {
+			break // No more messages
+		}
+
+		for _, msg := range messages {
+			var logMsg LogMessage
+			if err := json.Unmarshal(msg.Data, &logMsg); err != nil {
+				msg.Ack()
+				continue
+			}
+
+			logs = append(logs, logMsg)
+			msg.Ack()
+		}
+
+		if len(messages) < batchSize {
+			break // No more messages to fetch
+		}
+	}
+
+	// If we found logs, return them
+	if len(logs) > 0 {
+		return logs, nil
+	}
+
+	// If no logs found, return empty array (this is normal for new builds)
+	log.Printf("No logs found for build %s", buildID)
+	return logs, nil
+}
+
+// ensureLogStream ensures that the log stream exists, creating it if necessary
+func (c *NATSClient) ensureLogStream(js nats.JetStreamContext, streamName string) error {
+	// Try to get stream info to check if it exists
+	streamInfo, err := js.StreamInfo(streamName)
+	if err == nil {
+		// Stream exists, check if it has the correct subjects
+		hasCorrectSubjects := false
+		for _, subject := range streamInfo.Config.Subjects {
+			if subject == "mira.logs.*" {
+				hasCorrectSubjects = true
+				break
+			}
+		}
+
+		if hasCorrectSubjects {
+			return nil // Stream exists with correct configuration
+		}
+
+		// Stream exists but doesn't have the correct subjects
+		// We can't modify subjects of an existing stream, so we'll use it as is
+		log.Printf("Stream %s exists but doesn't have mira.logs.* subject. Using existing stream.", streamName)
+		return nil
+	}
+
+	// Configurable retention
+	maxAgeHours := 24
+	if v := os.Getenv("MIRA_LOG_STREAM_MAX_AGE_HOURS"); v != "" {
+		if n, e := strconv.Atoi(v); e == nil && n > 0 {
+			maxAgeHours = n
+		}
+	}
+	maxMsgs := 10000
+	if v := os.Getenv("MIRA_LOG_STREAM_MAX_MSGS"); v != "" {
+		if n, e := strconv.Atoi(v); e == nil && n > 0 {
+			maxMsgs = n
+		}
+	}
+
+	// Stream doesn't exist, create it
+	_, err = js.AddStream(&nats.StreamConfig{
+		Name:      streamName,
+		Subjects:  []string{"mira.logs.*"}, // Match all log subjects
+		Storage:   nats.FileStorage,
+		Retention: nats.LimitsPolicy,
+		MaxAge:    time.Duration(maxAgeHours) * time.Hour,
+		MaxMsgs:   int64(maxMsgs),
+	})
+	if err != nil {
+		// Check if the error is due to subject overlap
+		if strings.Contains(err.Error(), "subjects overlap") {
+			log.Printf("Stream with overlapping subjects already exists. Using existing stream.")
+			return nil
+		}
+		return fmt.Errorf("failed to create log stream: %v", err)
+	}
+
+	return nil
 }

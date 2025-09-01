@@ -22,7 +22,7 @@ func NewBuildService() *BuildService {
 }
 
 // BuildImage builds a Docker image using buildpacks
-func (b *BuildService) BuildImage(buildSpec *models.BuildSpec, sourcePath string, natsLogger *common.NATSLogger) error {
+func (b *BuildService) BuildImage(buildSpec *models.BuildSpec, sourcePath string, natsLogger common.Logger) error {
 	natsLogger.InfoWithStep("build", "Image Build Process Started")
 
 	logger := logging.NewLogWithWriters(natsLogger, natsLogger)

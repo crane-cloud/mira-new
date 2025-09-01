@@ -13,19 +13,21 @@ import (
 
 // BuildHandler handles build orchestration
 type BuildHandler struct {
-	gitService    *services.GitService
-	buildService  *services.BuildService
-	deployService *services.DeployService
-	natsClient    *common.NATSClient
+	gitService        *services.GitService
+	buildService      *services.BuildService
+	deployService     *services.DeployService
+	validationService *services.ValidationService
+	natsClient        *common.NATSClient
 }
 
 // NewBuildHandler creates a new build handler with all required services
 func NewBuildHandler(natsClient *common.NATSClient) *BuildHandler {
 	return &BuildHandler{
-		gitService:    services.NewGitService(),
-		buildService:  services.NewBuildService(),
-		deployService: services.NewDeployService(),
-		natsClient:    natsClient,
+		gitService:        services.NewGitService(),
+		buildService:      services.NewBuildService(),
+		deployService:     services.NewDeployService(),
+		validationService: services.NewValidationService(),
+		natsClient:        natsClient,
 	}
 }
 
@@ -35,15 +37,17 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 	log.Printf("MIRA Processing build request: %s", buildReq.ID)
 
 	// Create NATS logger for this build
-	logger := common.NewNATSLogger(h.natsClient.GetConnection(), buildReq.ID)
+	logger := common.NewMongoNATSLogger(h.natsClient.GetConnection(), buildReq.ID)
 
 	// Publish build status: started
-	status := &models.BuildStatus{
+	status := &common.BuildStatus{
 		BuildID:   buildReq.ID,
+		ProjectID: buildReq.Spec.ProjectID,
+		AppName:   buildReq.Name,
 		Status:    "running",
 		StartedAt: time.Now(),
 	}
-	h.natsClient.PublishBuildStatus((*common.BuildStatus)(status))
+	h.natsClient.PublishBuildStatus(status)
 
 	// Convert BuildRequest to internal build spec
 	buildSpec := imageUtils.ConvertToBuildSpec(buildReq)
@@ -58,7 +62,18 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 		status.Status = "failed"
 		status.CompletedAt = time.Now()
 		status.Error = err.Error()
-		h.natsClient.PublishBuildStatus((*common.BuildStatus)(status))
+		h.natsClient.PublishBuildStatus(status)
+
+		// Publish build completion notification
+		completion := &common.BuildCompletionMessage{
+			Type:      "build_completion",
+			BuildID:   buildReq.ID,
+			Status:    "failed",
+			Message:   fmt.Sprintf("Build failed: %v", err),
+			Error:     err.Error(),
+			Timestamp: time.Now(),
+		}
+		h.natsClient.PublishBuildCompletion(completion)
 
 		return fmt.Errorf("error creating image: %v", err)
 	}
@@ -72,26 +87,43 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 	status.Status = "completed"
 	status.CompletedAt = time.Now()
 	status.ImageName = imageName
-	h.natsClient.PublishBuildStatus((*common.BuildStatus)(status))
+	h.natsClient.PublishBuildStatus(status)
+
+	// Publish build completion notification
+	completion := &common.BuildCompletionMessage{
+		Type:      "build_completion",
+		BuildID:   buildReq.ID,
+		Status:    "completed",
+		Message:   fmt.Sprintf("Build completed successfully. Image: %s", imageName),
+		ImageName: imageName,
+		Timestamp: time.Now(),
+	}
+	h.natsClient.PublishBuildCompletion(completion)
 
 	return nil
 }
 
 // executeBuildPipeline runs the complete build pipeline
-func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger *common.NATSLogger) error {
-	// Step 1: Handle source code (git clone or file download)
+func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger common.Logger) error {
+	// Step 1: Validate app name (check if app already exists)
+	err := h.validationService.ValidateAppName(buildSpec, logger)
+	if err != nil {
+		return fmt.Errorf("app name validation failed: %w", err)
+	}
+
+	// Step 2: Handle source code (git clone or file download)
 	sourcePath, err := h.handleSourceCode(buildSpec, logger)
 	if err != nil {
 		return fmt.Errorf("source handling failed: %w", err)
 	}
 
-	// Step 2: Build the image
+	// Step 3: Build the image
 	err = h.buildService.BuildImage(buildSpec, sourcePath, logger)
 	if err != nil {
 		return fmt.Errorf("image build failed: %w", err)
 	}
 
-	// Step 3: Deploy to Crane Cloud
+	// Step 4: Deploy to Crane Cloud
 	err = h.deployService.DeployToCraneCloud(buildSpec, logger)
 	if err != nil {
 		return fmt.Errorf("deployment failed: %w", err)
@@ -101,7 +133,7 @@ func (h *BuildHandler) executeBuildPipeline(buildSpec *models.BuildSpec, logger 
 }
 
 // handleSourceCode handles git cloning or file downloading based on source type
-func (h *BuildHandler) handleSourceCode(buildSpec *models.BuildSpec, logger *common.NATSLogger) (string, error) {
+func (h *BuildHandler) handleSourceCode(buildSpec *models.BuildSpec, logger common.Logger) (string, error) {
 	switch buildSpec.Source.Type {
 	case "git":
 		logger.InfoWithStep("clone", "Fetching Codebase from Git Repository")

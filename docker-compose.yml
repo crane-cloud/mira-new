@@ -18,6 +18,21 @@ services:
     volumes:
       - nats-data:/data/js
 
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=mira
+      - MONGO_LOG_TTL_HOURS=1440 # 60 days
+    networks:
+      - mira-network
+    volumes:
+      - mongodb-data:/data/db
+    restart: unless-stopped
+
   # NATS monitoring/dashboard for development debugging
   nats-exporter:
     image: natsio/prometheus-nats-exporter:latest
@@ -37,12 +52,15 @@ services:
       target: development
     depends_on:
       - nats
+      - mongodb
     ports:
       - "3000:3000"
     entrypoint: []
     command: ["sh", "-c", "cd /app && air -- api-server --port 3000"]
     environment:
       - NATS_URL=nats://nats:4222
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/mira?authSource=admin
+      - MONGO_LOG_TTL_HOURS=1440 # 60 days
       - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-testuser}
       - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://api.cranecloud.io}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -80,6 +98,8 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
       - CRANECLOUD_API_HOST=${CRANECLOUD_API_HOST:-https://staging.api.cranecloud.io}
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/mira?authSource=admin
+      - MONGO_LOG_TTL_HOURS=1440 # 60 days
       - CGO_ENABLED=0
       - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
       - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}
@@ -101,6 +121,7 @@ services:
 
 volumes:
   nats-data:
+  mongodb-data:
   go-cache:
   pack-cache:
   docker-cache:

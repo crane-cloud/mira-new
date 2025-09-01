@@ -6,6 +6,7 @@ import (
 
 	_ "mira/cmd/api/models"
 	"mira/cmd/api/schemas"
+	"mira/cmd/api/services"
 	common "mira/cmd/common"
 
 	"github.com/gofiber/fiber/v2"
@@ -13,7 +14,8 @@ import (
 )
 
 type ImageHandler struct {
-	natsClient *common.NATSClient
+	natsClient        *common.NATSClient
+	validationService *services.ValidationService
 }
 
 func NewImageHandler(natsClient *common.NATSClient) *ImageHandler {
@@ -26,7 +28,8 @@ func NewImageHandler(natsClient *common.NATSClient) *ImageHandler {
 		}
 	}
 	return &ImageHandler{
-		natsClient: natsClient,
+		natsClient:        natsClient,
+		validationService: services.NewValidationService(),
 	}
 }
 
@@ -70,6 +73,14 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":      "Validation failed",
 			"validation": validationErrors,
+		})
+	}
+
+	// Validate app name with CraneCloud backend
+	if err := h.validationService.ValidateAppName(req.Name, req.ProjectId, req.AccessToken); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "App name validation failed",
+			"details": err.Error(),
 		})
 	}
 
