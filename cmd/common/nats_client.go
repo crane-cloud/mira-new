@@ -234,6 +234,73 @@ func (c *NATSClient) SubscribeToLogs(buildID string, handler func(*LogMessage)) 
 	})
 }
 
+// PublishBuildCompletion publishes a build completion notification
+func (c *NATSClient) PublishBuildCompletion(completion *BuildCompletionMessage) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return c.PublishBuildCompletionWithContext(ctx, completion)
+}
+
+// PublishBuildCompletionWithContext publishes a build completion notification with context support
+func (c *NATSClient) PublishBuildCompletionWithContext(ctx context.Context, completion *BuildCompletionMessage) error {
+	if !c.IsConnected() {
+		return fmt.Errorf("NATS connection is not healthy")
+	}
+
+	data, err := json.Marshal(completion)
+	if err != nil {
+		return fmt.Errorf("failed to marshal build completion: %v", err)
+	}
+
+	subject := BuildCompletionSubject(completion.BuildID)
+
+	// Retry logic with exponential backoff
+	maxRetries := 2
+	baseDelay := 50 * time.Millisecond
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("completion publish cancelled: %v", ctx.Err())
+		default:
+		}
+
+		err = c.conn.Publish(subject, data)
+		if err == nil {
+			return nil
+		}
+
+		if attempt == maxRetries-1 {
+			break // Last attempt failed, don't wait
+		}
+
+		// Exponential backoff
+		delay := baseDelay * time.Duration(1<<attempt)
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("completion publish cancelled during retry: %v", ctx.Err())
+		case <-time.After(delay):
+		}
+	}
+
+	return fmt.Errorf("failed to publish build completion after %d attempts: %v", maxRetries, err)
+}
+
+// SubscribeToBuildCompletion subscribes to build completion notifications for a specific build
+func (c *NATSClient) SubscribeToBuildCompletion(buildID string, handler func(*BuildCompletionMessage)) (*nats.Subscription, error) {
+	subject := BuildCompletionSubject(buildID)
+	return c.conn.Subscribe(subject, func(msg *nats.Msg) {
+		var completion BuildCompletionMessage
+		if err := json.Unmarshal(msg.Data, &completion); err != nil {
+			fmt.Printf("Failed to unmarshal build completion message: %v\n", err)
+			return
+		}
+		handler(&completion)
+	})
+}
+
 // GetBuildLogs retrieves all logs for a specific build from JetStream
 //
 // This method fetches all historical log messages for a specific build ID

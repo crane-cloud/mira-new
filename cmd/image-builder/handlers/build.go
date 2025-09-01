@@ -62,6 +62,17 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 		status.Error = err.Error()
 		h.natsClient.PublishBuildStatus(status)
 
+		// Publish build completion notification
+		completion := &common.BuildCompletionMessage{
+			Type:      "build_completion",
+			BuildID:   buildReq.ID,
+			Status:    "failed",
+			Message:   fmt.Sprintf("Build failed: %v", err),
+			Error:     err.Error(),
+			Timestamp: time.Now(),
+		}
+		h.natsClient.PublishBuildCompletion(completion)
+
 		return fmt.Errorf("error creating image: %v", err)
 	}
 
@@ -75,6 +86,17 @@ func (h *BuildHandler) ProcessBuildRequest(buildReq *common.BuildRequest) error 
 	status.CompletedAt = time.Now()
 	status.ImageName = imageName
 	h.natsClient.PublishBuildStatus(status)
+
+	// Publish build completion notification
+	completion := &common.BuildCompletionMessage{
+		Type:      "build_completion",
+		BuildID:   buildReq.ID,
+		Status:    "completed",
+		Message:   fmt.Sprintf("Build completed successfully. Image: %s", imageName),
+		ImageName: imageName,
+		Timestamp: time.Now(),
+	}
+	h.natsClient.PublishBuildCompletion(completion)
 
 	return nil
 }

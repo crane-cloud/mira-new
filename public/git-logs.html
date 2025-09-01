@@ -82,6 +82,12 @@
         border: 1px solid #721c24;
       }
 
+      .status.success {
+        background: #0f5132;
+        color: #d1e7dd;
+        border: 1px solid #0a3622;
+      }
+
       #logs {
         margin-top: 20px;
         padding: 15px;
@@ -106,6 +112,11 @@
 
       .log-error {
         color: #f44336;
+        font-weight: bold;
+      }
+
+      .log-success {
+        color: #4caf50;
         font-weight: bold;
       }
 
@@ -218,6 +229,41 @@
             if (logData.message && !logData.level) {
               // Connection confirmation or other system messages
               appendLog(`ℹ️  ${logData.message}`, "info");
+              return;
+            }
+
+            // Handle build completion messages
+            if (logData.type === "build_completion") {
+              const timestamp = logData.timestamp
+                ? new Date(logData.timestamp).toLocaleTimeString()
+                : "";
+
+              if (logData.status === "completed") {
+                appendLog(
+                  `🎉 [${timestamp}] BUILD COMPLETED SUCCESSFULLY!`,
+                  "success"
+                );
+                appendLog(
+                  `📦 Image: ${logData.image_name || "N/A"}`,
+                  "success"
+                );
+                appendLog(`✅ ${logData.message}`, "success");
+
+                // Show success notification
+                showStatus(`🎉 Build completed successfully!`, "success");
+
+                // Optionally disable the disconnect button to keep connection open
+                // disconnectBtn.disabled = true;
+              } else if (logData.status === "failed") {
+                appendLog(`💥 [${timestamp}] BUILD FAILED!`, "error");
+                appendLog(`❌ ${logData.message}`, "error");
+                if (logData.error) {
+                  appendLog(`🔍 Error details: ${logData.error}`, "error");
+                }
+
+                // Show failure notification
+                showStatus(`💥 Build failed!`, "error");
+              }
               return;
             }
 

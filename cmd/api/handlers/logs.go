@@ -351,7 +351,7 @@ func (h *LogHandler) StreamLogs(c *websocket.Conn) {
 	log.Printf("Starting log stream for build ID: %s", buildID)
 
 	// Subscribe to logs for this specific build
-	sub, err := h.natsClient.SubscribeToLogs(buildID, func(logMsg *common.LogMessage) {
+	logSub, err := h.natsClient.SubscribeToLogs(buildID, func(logMsg *common.LogMessage) {
 		// Convert log message to JSON and send via WebSocket
 		data, err := json.Marshal(logMsg)
 		if err != nil {
@@ -373,9 +373,32 @@ func (h *LogHandler) StreamLogs(c *websocket.Conn) {
 		return
 	}
 
+	// Subscribe to build completion notifications for this specific build
+	completionSub, err := h.natsClient.SubscribeToBuildCompletion(buildID, func(completion *common.BuildCompletionMessage) {
+		// Convert completion message to JSON and send via WebSocket
+		data, err := json.Marshal(completion)
+		if err != nil {
+			log.Printf("Failed to marshal completion message: %v", err)
+			return
+		}
+
+		err = c.WriteMessage(websocket.TextMessage, data)
+		if err != nil {
+			log.Printf("Failed to write WebSocket completion message: %v", err)
+		}
+	})
+
+	if err != nil {
+		log.Printf("Failed to subscribe to build completion for build %s: %v", buildID, err)
+		// Don't close the connection, just log the error as logs can still work
+	}
+
 	defer func() {
-		if sub != nil {
-			sub.Unsubscribe()
+		if logSub != nil {
+			logSub.Unsubscribe()
+		}
+		if completionSub != nil {
+			completionSub.Unsubscribe()
 		}
 		log.Printf("Log stream ended for build ID: %s", buildID)
 	}()
