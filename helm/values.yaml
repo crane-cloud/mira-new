@@ -68,34 +68,36 @@ tolerations: []
 
 affinity: {}
 
-nginxConf: server {
-  listen 80;
-  server_name localhost;
+nginxConf: |
+  server {
+    listen 80;
+    server_name localhost;
 
-  location / {
-  proxy_pass http://localhost:5000/;
-  proxy_set_header Host "localhost";
+    location / {
+      proxy_pass http://localhost:3000/;
+      proxy_set_header Host "localhost";
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
   }
-  }
-port: 5000
-
+port: 3000
 environment:
   APP: "test-app"
-  # Uncmment lines below if you want to use your own
-  # DATABASE_URI: DATABASE_URI
-  # FLASK_APP:
-  # FLASK_ENV:
-  # FLASK_APP_SECRET:
-  # DATABASE_URI:
-  # MONGO_URI:
-  # REDIS_URL:
+  CGO_ENABLED: "0"
+  NATS_URL: "nats://mira-nats:4222"
+  # DOCKERHUB_USERNAME: ""
+  # DOCKERHUB_TOKEN: ""
+
+  # ...
 
 imagebuilder:
   create: true
+  replicaCount: 1
   command:
     - "sh"
     - "-c"
-    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && air -- image-builder"
+    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && go build -o ./tmp/main ./main.go && ./tmp/main image-builder"
   port: 5002
 
 redis:
@@ -105,7 +107,7 @@ redis:
   storage: 1Gi
 
 mongo:
-  create: false
+  create: true
   image:
     repository: mongo
     tag: latest
@@ -117,3 +119,23 @@ mongo:
     MONGO_INITDB_ROOT_USERNAME: mira
     MONGO_INITDB_ROOT_PASSWORD: password
     MONGO_INITDB_DATABASE: mira
+
+nats:
+  create: true
+  image:
+    repository: nats
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Additional NATS configuration
+  jetstream:
+    enabled: true
+    storage: "/data/js"

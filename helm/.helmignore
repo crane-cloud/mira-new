@@ -21,3 +21,11 @@
 .idea/
 *.tmproj
 .vscode/
+
+# Large files and directories
+mira
+tmp/
+builds/
+uploads/
+logs/
+*.log

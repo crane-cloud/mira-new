@@ -52,3 +52,22 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 {{- end }}
+
+
+{{- if .Values.imagebuilder.create -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mira.name" . }}-image-builder
+  labels:
+    {{- include "mira.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.imagebuilder.port }}
+      targetPort: image-builder
+      protocol: TCP
+      name: image-builder
+  selector:
+    {{- include "mira.selectorLabels" . | nindent 4 }}
+{{- end }}
