@@ -25,7 +25,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
-    -o /bin/mira ./main.go
+    -o /app/mira ./main.go
 
 # For development: keep Go available for live reload
 FROM golang:1.24-alpine AS development
