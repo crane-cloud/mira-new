@@ -36,6 +36,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          workingDir: /app
           env:        
           {{- range $key, $value := .Values.environment }}
           - name: {{ $key }}
@@ -48,6 +49,7 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          command: {{ .Values.command | toYaml | nindent 12 }}
         - name: nginx
           image: nginx:1.21.6
           imagePullPolicy: IfNotPresent

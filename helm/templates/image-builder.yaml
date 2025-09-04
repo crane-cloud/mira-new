@@ -39,8 +39,6 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: {{ .Values.imagebuilder.command | toYaml | nindent 12}}
           env:
-          - name: test
-            value: test
           {{- range $key, $value := .Values.environment }}
           - name: {{ $key }}
             value: {{ $value | quote }}
@@ -53,7 +51,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
 {{- end }}
 
-
+---
 {{- if .Values.imagebuilder.create -}}
 apiVersion: v1
 kind: Service
