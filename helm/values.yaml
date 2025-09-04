@@ -44,11 +44,11 @@ service:
 
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
     cpu: 200m
     memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
 
 autoscaling:
   enabled: false
@@ -93,7 +93,7 @@ command: ["/app/mira", "api-server", "--port", "3000"]
 
 environment:
   CGO_ENABLED: "0"
-  NATS_URL: "mira-nats://nats:4222"
+  NATS_URL: "nats://mira-nats:4222"
   DOCKERHUB_USERNAME: ""
   DOCKERHUB_TOKEN: ""
   CRANECLOUD_API_HOST: ""

@@ -8,7 +8,7 @@ image:
   repository: cranecloud/mira
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ${{ DOCKER_IMAGE_TAG }}
+  tag: latest
 
 imagePullSecrets: []
 nameOverride: "mira"
@@ -20,11 +20,11 @@ service:
 
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
     cpu: 200m
     memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
 
 nginxConf: |
   server {
@@ -56,14 +56,14 @@ command: ["/app/mira", "api-server", "--port", "3000"]
 
 environment:
   CGO_ENABLED: "0"
-  NATS_URL: "nats://nats:4222"
+  NATS_URL: "nats://mira-nats:4222"
   CRANECLOUD_API_HOST: "https://staging-api.cranecloud.io"
   MONGO_LOG_TTL_HOURS: "1440" # 60 days
-  DOCKERHUB_USERNAME: ${{ DOCKER_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ DOCKER_TOKEN }}
-  MONGODB_URI: ${{ MONGODB_URI }}
-  GITHUB_REDIRECT_URI: ${{ GITHUB_REDIRECT_URI }}
-  GITHUB_ACCESS_TOKEN: ${{ GITHUB_ACCESS_TOKEN }}
+  DOCKERHUB_USERNAME: ""
+  DOCKERHUB_TOKEN: ""
+  MONGODB_URI: ""
+  GITHUB_REDIRECT_URI: ""
+  GITHUB_ACCESS_TOKEN: ""
 
 imagebuilder:
   create: true
