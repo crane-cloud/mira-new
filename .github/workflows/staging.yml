@@ -100,33 +100,16 @@ jobs:
           location: us-central1-a
           project_id: crane-cloud-274413
 
-      - name: Add Repo (cranecloud)
-        run: |
-          helm repo add cranecloud https://crane-cloud.github.io/helm-charts/
-
       - name: Helm Release
         run: |
           helm upgrade --install \
-          mira  cranecloud/mira \
-          --version 0.1.7 \
+          mira ./helm \
           --values helm/values.staging.yaml \
           --namespace $namespace \
           --set image.tag="${{ needs.build.outputs.tag }}" \
-          --set environment.ADMIN_MYSQL_PASSWORD="${{ secrets.STAGING_ADMIN_MYSQL_PASSWORD }}" \
-          --set environment.ADMIN_PSQL_PASSWORD="${{ secrets.STAGING_ADMIN_PSQL_PASSWORD }}" \
-          --set environment.APP_MAIL_PASSWORD="${{ secrets.STAGING_APP_MAIL_PASSWORD }}" \
-          --set environment.DATABASE_URI="${{ secrets.STAGING_DATABASE_URI }}" \
-          --set environment.MONGO_URI="${{ secrets.STAGING_MONGO_URI }}" \
-          --set environment.FLASK_APP_SALT="${{ secrets.STAGING_FLASK_APP_SALT }}" \
-          --set environment.FLASK_APP_SECRET="${{ secrets.STAGING_FLASK_APP_SECRET }}" \
-          --set environment.GITHUB_CLIENT_SECRET="${{ secrets.STAGING_GITHUB_CLIENT_SECRET }}" \
-          --set environment.NEW_RELIC_LICENSE_KEY="${{ secrets.STAGING_NEW_RELIC_LICENSE_KEY }}" \
-          --set environment.KUBE_SERVICE_PORT="${{ secrets.STAGING_KUBE_SERVICE_PORT }}" \
-          --set environment.LOGGER_APP_URL="${{ secrets.MICROSERVICE_LOGGER_APP_URL }}" \
-          --set environment.MLOPS_API_URL="${{ secrets.MICROSERVICE_MLOPS_API_URL }}" \
-          --set environment.GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
-          --set environment.GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-          --set environment.GOOGLE_REDIRECT_URI="${{ secrets.STAGING_GOOGLE_REDIRECT_URI }}" \
+          --set environment.MONGODB_URI="${{ secrets.STAGING_MONGODB_URI }}" \
+          --set environment.GITHUB_ACCESS_TOKEN="${{ secrets.STAGING_GITHUB_ACCESS_TOKEN }}" \
+          --set environment.GITHUB_REDIRECT_URI="${{ secrets.STAGING_GITHUB_REDIRECT_URI }}" \
           --set environment.DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}" \
           --set environment.DOCKERHUB_TOKEN="${{ secrets.DOCKERHUB_TOKEN }}" \
           --timeout=300s

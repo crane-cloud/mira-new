@@ -6,37 +6,13 @@ replicaCount: 1
 
 image:
   repository: cranecloud/mira
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: latest
+  tag: ${{ DOCKER_IMAGE_TAG }}
 
 imagePullSecrets: []
 nameOverride: "mira"
 fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: false
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext:
-  {}
-  # fsGroup: 2000
-
-securityContext:
-  {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
 
 service:
   type: ClusterIP
@@ -49,19 +25,6 @@ resources:
   requests:
     cpu: 200m
     memory: 256Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
 
 nginxConf: |
   server {
@@ -93,12 +56,14 @@ command: ["/app/mira", "api-server", "--port", "3000"]
 
 environment:
   CGO_ENABLED: "0"
-  NATS_URL: "mira-nats://nats:4222"
-  DOCKERHUB_USERNAME: ""
-  DOCKERHUB_TOKEN: ""
-  CRANECLOUD_API_HOST: ""
-  MONGODB_URI: "mongodb://mira:password@mongo:27017/mira?authSource=admin"
+  NATS_URL: "nats://nats:4222"
+  CRANECLOUD_API_HOST: "https://staging-api.cranecloud.io"
   MONGO_LOG_TTL_HOURS: "1440" # 60 days
+  DOCKERHUB_USERNAME: ${{ DOCKER_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ DOCKER_TOKEN }}
+  MONGODB_URI: ${{ MONGODB_URI }}
+  GITHUB_REDIRECT_URI: ${{ GITHUB_REDIRECT_URI }}
+  GITHUB_ACCESS_TOKEN: ${{ GITHUB_ACCESS_TOKEN }}
 
 imagebuilder:
   create: true
@@ -110,33 +75,10 @@ imagebuilder:
   port: 5002
 
 mongo:
-  create: true
-  image:
-    repository: mongo
-    tag: latest
-    pullPolicy: IfNotPresent
-  replicas: 1
-  port: 27017
-  storage: 1Gi
-  environment:
-    MONGO_INITDB_ROOT_USERNAME: mira
-    MONGO_INITDB_ROOT_PASSWORD: password
-    MONGO_INITDB_DATABASE: mira
+  create: false
 
 nats:
   create: true
-  image:
-    repository: nats
-    tag: latest
-    pullPolicy: IfNotPresent
-  replicas: 1
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
 
   # Additional NATS configuration
   jetstream:
