@@ -43,17 +43,12 @@ service:
   port: 80
 
 resources:
-  {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
 
 autoscaling:
   enabled: false
@@ -73,23 +68,35 @@ nginxConf: |
     listen 80;
     server_name localhost;
 
+    # Proxy API requests to the backend
+    location /api/ {
+      proxy_pass http://localhost:3000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Serve static files directly
     location / {
-      proxy_pass http://localhost:3000/;
-      proxy_set_header Host "localhost";
+      proxy_pass http://localhost:3000;
+      proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto $scheme;
     }
   }
-port: 3000
-environment:
-  APP: "test-app"
-  CGO_ENABLED: "0"
-  NATS_URL: "nats://mira-nats:4222"
-  # DOCKERHUB_USERNAME: ""
-  # DOCKERHUB_TOKEN: ""
 
-  # ...
+port: 3000
+
+command: ["/app/mira", "api-server", "--port", "3000"]
+
+environment:
+  CGO_ENABLED: "0"
+  NATS_URL: "nats://nats:4222"
+  DOCKERHUB_USERNAME: ""
+  DOCKERHUB_TOKEN: ""
+  MONGODB_URI: "mongodb://mira:password@mongodb:27017/mira?authSource=admin"
 
 imagebuilder:
   create: true
@@ -97,14 +104,8 @@ imagebuilder:
   command:
     - "sh"
     - "-c"
-    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && go build -o ./tmp/main ./main.go && ./tmp/main image-builder"
+    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && air -- image-builder"
   port: 5002
-
-redis:
-  create: false
-  replicas: 1
-  port: 6379
-  storage: 1Gi
 
 mongo:
   create: true
