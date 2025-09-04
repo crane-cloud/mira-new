@@ -2,8 +2,8 @@ FROM ubuntu:noble
 
 # Install packages that we want to make available at build time
 RUN apt-get update && \
-  apt-get install -y xz-utils ca-certificates && \
-  rm -rf /var/lib/apt/lists/*
+  apt-get install -y xz-utils ca-certificates nginx && \
+  rm -rf /var/lib/apt/lists/* 
 
 # Set required CNB user information
 ARG cnb_uid=1000

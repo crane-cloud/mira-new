@@ -3,7 +3,7 @@ package utils
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"strings"
 )
 
@@ -11,19 +11,12 @@ var LAUNCH_TOML = []byte(`[types]
 launch = true
 `)
 
-func WriteFile(path string, content []byte) error {
-	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return fmt.Errorf("failed to create parent dirs: %w", err)
-	}
+var BUILD_TOML = []byte(`[types]
+build = true
 
-	// Write content to file
-	if err := os.WriteFile(path, content, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
-}
+[env]
+PATH = "bin"
+`)
 
 func CommandToJSONString(cmd string) string {
 	parts := strings.Fields(cmd)
@@ -36,7 +29,8 @@ func CommandToJSONString(cmd string) string {
 	return "[" + strings.Join(quoted, ", ") + "]"
 }
 
-func GenerateLauncherFileContents(command string) []byte {
+func GenerateLauncherFileContents() []byte {
+	command := GetStartCommand(APP_TYPE)
 	commandString := CommandToJSONString(command)
 
 	var contents = `
@@ -46,4 +40,35 @@ command = ` + commandString + `
 default = true
 	`
 	return []byte(contents)
+}
+
+// RunCommand runs a shell command in the current directory.
+// Example: "npm run build"
+func RunCommand(command string) error {
+	// Split the command into args
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return fmt.Errorf("empty command")
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Env = os.Environ()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Dir = "." // current dir
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run command: %w", err)
+	}
+
+	return nil
+}
+
+func GetStartCommand(app_type string) string {
+	if APP_TYPE == "ssr" {
+		return SSR_START_COMMAND
+	} else {
+		return CADDY_START_COMMAND
+	}
 }
