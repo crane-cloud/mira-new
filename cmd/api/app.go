@@ -98,6 +98,9 @@ func StartServer(port string) {
 	// Swagger documentation
 	app.Get("/api/docs/*", fiberSwagger.WrapHandler)
 
+	// Serve Swagger UI static files
+	app.Static("/api/docs", "./docs")
+
 	// Setup all API routes
 	SetupRoutes(app, natsClient, mongoConfig)
 
