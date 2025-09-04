@@ -96,7 +96,7 @@ func StartServer(port string) {
 	app.Static("/", "./public")
 
 	// Swagger documentation
-	app.Get("/api/docs/*", fiberSwagger.WrapHandler)
+	app.Get("/docs/*", fiberSwagger.WrapHandler)
 
 	// Setup all API routes
 	SetupRoutes(app, natsClient, mongoConfig)
