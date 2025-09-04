@@ -20,7 +20,7 @@ func SetupRoutes(app *fiber.App, natsClient *common.NATSClient, mongoConfig *con
 	// Setup all route groups
 	// home route
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Welcome to MIRA API Server access the docs at /api/docs/")
+		return c.SendString("Welcome to MIRA API Server access the docs at /apidocs/")
 	})
 	setupImageRoutes(app, natsClient)
 	setupLogRoutes(app, natsClient, mongoService)

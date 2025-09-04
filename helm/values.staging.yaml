@@ -14,10 +14,6 @@ imagePullSecrets: []
 nameOverride: "mira"
 fullnameOverride: ""
 
-service:
-  type: ClusterIP
-  port: 80
-
 resources:
   limits:
     cpu: 200m
@@ -25,27 +21,6 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
-
-nginxConf: |
-  server {
-    listen 80;
-    server_name localhost;
-
-    # Proxy all requests to the backend
-    location / {
-      proxy_pass http://localhost:3000;
-      proxy_set_header Host $host;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Host $host;
-      proxy_set_header X-Forwarded-Port $server_port;
-      
-      # Important: Don't buffer responses for Swagger UI
-      proxy_buffering off;
-      proxy_cache off;
-    }
-  }
 
 port: 3000
 
@@ -76,7 +51,6 @@ mongo:
 
 nats:
   create: true
-
   # Additional NATS configuration
   jetstream:
     enabled: true
