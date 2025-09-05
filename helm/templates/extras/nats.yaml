@@ -1,0 +1,61 @@
+{{- if .Values.nats.create -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mira.name" . }}-nats
+  labels:
+    {{- include "mira.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.nats.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "mira.name" . }}-nats
+  template:
+    metadata:
+      labels:
+        app: {{ include "mira.name" . }}-nats
+    spec:
+      containers:
+        - name: nats
+          image: "{{ .Values.nats.image.repository }}:{{ .Values.nats.image.tag }}"
+          imagePullPolicy: {{ .Values.nats.image.pullPolicy }}
+          ports:
+            - containerPort: 4222
+              name: client
+            - containerPort: 8222
+              name: monitoring
+          command:
+            - "nats-server"
+            - "-js"
+            - "--store_dir"
+            - "/data/js"
+            - "-m"
+            - "8222"
+            - "-V"
+          resources:
+            {{- toYaml .Values.nats.resources | nindent 12 }}
+          volumeMounts:
+            - name: nats-data
+              mountPath: /data
+      volumes:
+        - name: nats-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mira.name" . }}-nats
+  labels:
+    {{- include "mira.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app: {{ include "mira.name" . }}-nats
+  ports:
+    - port: 4222
+      name: client
+      targetPort: client
+    - port: 8222
+      name: monitoring
+      targetPort: monitoring
+{{- end }}

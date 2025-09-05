@@ -60,8 +60,15 @@ func StartServer(port string) {
 		JSONDecoder: gojson.Unmarshal,
 	})
 
-	// Enable CORS
-	app.Use(cors.New())
+	// Enable CORS with proper configuration
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Requested-With",
+		AllowCredentials: false,
+		ExposeHeaders:    "Content-Length",
+		MaxAge:           12 * 3600, // 12 hours
+	}))
 
 	// Health check endpoint
 	// @Summary Health check
@@ -89,7 +96,7 @@ func StartServer(port string) {
 	app.Static("/", "./public")
 
 	// Swagger documentation
-	app.Get("/api/docs/*", fiberSwagger.WrapHandler)
+	app.Get("/apidocs/*", fiberSwagger.WrapHandler)
 
 	// Setup all API routes
 	SetupRoutes(app, natsClient, mongoConfig)
