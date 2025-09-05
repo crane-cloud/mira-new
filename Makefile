@@ -2,6 +2,9 @@
 DOCKER_DEV_COMPOSE_FILE := docker-compose.yml
 BINARY_NAME := mira
 DEV_SERVICE := api
+BUILDPACKS_DIR := buildpacks
+
+
 
 help:  ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -81,6 +84,24 @@ shell: build-image ## Open shell in development container
 	@ ${INFO} "Opening shell in development container"
 	@ docker compose -f $(DOCKER_DEV_COMPOSE_FILE) exec $(DEV_SERVICE) /bin/bash
 
+build-bp: ## Build the Mira Buildpacks
+	@ ${INFO} "Building the Mira Buildpacks"
+	@ ${INFO} "Building the Node.js Buildpack..."
+	@ cd $(BUILDPACKS_DIR) && go build -o ./nodejs/bin/build ./nodejs/cmd/build/main.go
+	@ cd $(BUILDPACKS_DIR) && go build -o ./nodejs/bin/detect ./nodejs/cmd/detect/main.go
+	@ ${INFO} "Buildpacks built successfully"
+	@ echo "Run with: ./$(BINARY_NAME) <command>"
+
+build-base-images: ## Build the base images for the builder
+	@ ${INFO} "Building base images for the builder"
+	@ cd $(BUILDPACKS_DIR)/builder && ./build.sh
+	@ ${INFO} "Base images built successfully"
+
+
+create-builder: build-bp build-base-images ## Create builder
+	@ ${INFO} "Creating Mira Builder..."
+	@ cd $(BUILDPACKS_DIR)/builder && pack builder create cranecloudplatform/mira-builder:latest --config ./builder.toml
+	@ ${INFO} "Builder created successfully"
 
 # set default target
 .DEFAULT_GOAL := help

@@ -1,0 +1,28 @@
+# Buildpacks to include in Mira builder
+[[buildpacks]]
+id = "mira/node-js"
+version = "0.0.1"
+uri = "../nodejs"
+
+
+# Order of buildpacks used for detection
+[[order]]
+[[order.group]]
+id = "mira/node-js"
+version = "0.0.1"
+
+
+# Base images used to create the builder
+[build]
+image = "jimjuniorb/buildpacks-build:latest"
+[run]
+[[run.images]]
+image = "jimjuniorb/buildpacks-run:latest"
+
+[[targets]]
+arch = "amd64"
+os = "linux"
+
+[[targets]]
+arch = "arm64"
+os = "linux"
