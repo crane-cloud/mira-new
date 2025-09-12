@@ -14,6 +14,7 @@ import (
 	gojson "github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/websocket/v2"
 	"github.com/nats-io/nats.go"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
@@ -60,15 +61,25 @@ func StartServer(port string) {
 		JSONDecoder: gojson.Unmarshal,
 	})
 
-	// Enable CORS with proper configuration
+	// Enable CORS with proper configuration for WebSocket support
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
 		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Requested-With",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Requested-With,Upgrade,Connection",
 		AllowCredentials: false,
 		ExposeHeaders:    "Content-Length",
 		MaxAge:           12 * 3600, // 12 hours
 	}))
+
+	// Add WebSocket middleware
+	app.Use("/api/logs", func(c *fiber.Ctx) error {
+		// Check if it's a WebSocket upgrade request
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
 
 	// Health check endpoint
 	// @Summary Health check

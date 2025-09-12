@@ -43,8 +43,15 @@ imagebuilder:
   command:
     - "sh"
     - "-c"
-    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && air -- image-builder"
+    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && /app/mira image-builder"
   port: 5002
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
 
 mongo:
   create: false

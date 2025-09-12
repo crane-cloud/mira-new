@@ -4,7 +4,7 @@ name: staging
 on:
   push:
     branches:
-      - main
+      - ch-deploy-app
 
   workflow_dispatch:
 
