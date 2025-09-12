@@ -14,10 +14,10 @@ version = "0.0.1"
 
 # Base images used to create the builder
 [build]
-image = "jimjuniorb/buildpacks-build:latest"
+image = "cranecloud/buildpacks-build:latest"
 [run]
 [[run.images]]
-image = "jimjuniorb/buildpacks-run:latest"
+image = "cranecloud/buildpacks-run:latest"
 
 [[targets]]
 arch = "amd64"

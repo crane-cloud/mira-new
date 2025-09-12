@@ -1,0 +1,31 @@
+name: Build and Push Docker Images
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker images
+        run: make create-builder
+
+      - name: Push Docker images
+        run: |
+          docker push cranecloud/buildpacks-run:latest
+          docker push cranecloud/buildpacks-build:latest
+          docker push cranecloud/mira-builder:latest

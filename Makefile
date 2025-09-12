@@ -100,7 +100,7 @@ build-base-images: ## Build the base images for the builder
 
 create-builder: build-bp build-base-images ## Create builder
 	@ ${INFO} "Creating Mira Builder..."
-	@ cd $(BUILDPACKS_DIR)/builder && pack builder create cranecloudplatform/mira-builder:latest --config ./builder.toml
+	@ cd $(BUILDPACKS_DIR)/builder && pack builder create cranecloud/mira-builder:latest --config ./builder.toml
 	@ ${INFO} "Builder created successfully"
 
 # set default target
