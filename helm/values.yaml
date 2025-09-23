@@ -135,8 +135,16 @@ imagebuilder:
   command:
     - "sh"
     - "-c"
-    - "cd /app && echo ${DOCKERHUB_TOKEN} | docker login -u ${DOCKERHUB_USERNAME} --password-stdin && /app/mira image-builder"
+    - 'cd /app && docker version && if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin && echo "Docker login successful" && docker system info && echo "Docker config:" && cat ~/.docker/config.json; else echo "Docker credentials not provided, skipping login"; fi && /app/mira image-builder'
   port: 5002
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    privileged: true
+  dockerCredentials:
+    username: "your-dockerhub-username"
+    token: "your-dockerhub-token"
 
 mongo:
   create: true

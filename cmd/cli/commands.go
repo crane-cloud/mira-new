@@ -3,9 +3,10 @@ package cli
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
 	apiServer "mira/cmd/api"
 	imageBuilder "mira/cmd/image-builder"
+
+	"github.com/spf13/cobra"
 )
 
 var APIServerCmd = &cobra.Command{

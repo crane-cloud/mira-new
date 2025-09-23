@@ -31,10 +31,14 @@ spec:
       serviceAccountName: {{ include "mira.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
       containers:
         - name: {{ include "mira.name" . }}-image-builder
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml .Values.imagebuilder.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: {{ .Values.imagebuilder.command | toYaml | nindent 12}}
@@ -47,6 +51,9 @@ spec:
             - name: image-builder
               containerPort: {{ .Values.imagebuilder.port }}
               protocol: TCP
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 {{- end }}
