@@ -25,12 +25,10 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext:
-  {}
+podSecurityContext: {}
   # fsGroup: 2000
 
-securityContext:
-  {}
+securityContext: {}
   # capabilities:
   #   drop:
   #   - ALL
@@ -128,6 +126,7 @@ environment:
   CRANECLOUD_API_HOST: ""
   MONGODB_URI: "mongodb://mira:password@mongo:27017/mira?authSource=admin"
   MONGO_LOG_TTL_HOURS: "1440" # 60 days
+  SECURE_SOCKET_URL: ""
 
 imagebuilder:
   create: true

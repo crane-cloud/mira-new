@@ -36,6 +36,7 @@ environment:
   MONGODB_URI: ""
   GITHUB_REDIRECT_URI: ""
   GITHUB_ACCESS_TOKEN: ""
+  SECURE_SOCKET_URL: ""
 
 imagebuilder:
   create: true

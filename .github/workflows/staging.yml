@@ -112,6 +112,7 @@ jobs:
           --set environment.GITHUB_REDIRECT_URI="${{ secrets.STAGING_GITHUB_REDIRECT_URI }}" \
           --set environment.DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}" \
           --set environment.DOCKERHUB_TOKEN="${{ secrets.DOCKERHUB_TOKEN }}" \
+          --set environment.SECURE_SOCKET_URL="${{ secrets.SECURE_SOCKET_URL }}" \
           --timeout=300s
 
       - name: Monitor Rollout

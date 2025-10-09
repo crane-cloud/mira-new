@@ -8,6 +8,7 @@ import (
 	"mira/cmd/api/schemas"
 	"mira/cmd/api/services"
 	common "mira/cmd/common"
+	"mira/cmd/config"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -34,10 +35,18 @@ func NewImageHandler(natsClient *common.NATSClient) *ImageHandler {
 }
 
 func getWebSocketURL(host, buildID string) string {
-	return fmt.Sprintf("ws://%s/api/logs/%s", host, buildID)
+	protocol := "ws"
+	if config.SECURE_SOCKET_URL {
+		protocol = "wss"
+	}
+	return fmt.Sprintf("%s://%s/api/logs/%s", protocol, host, buildID)
 }
 func getLogsHTMLURL(host, buildID string) string {
-	return fmt.Sprintf("http://%s/git-logs.html?buildId=%s", host, buildID)
+	protocol := "http"
+	if config.SECURE_SOCKET_URL {
+		protocol = "https"
+	}
+	return fmt.Sprintf("%s://%s/git-logs.html?buildId=%s", protocol, host, buildID)
 }
 
 // GenerateImage containerizes source code into Docker images
