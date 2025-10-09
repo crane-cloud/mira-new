@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"mira/cmd/api/services"
 	common "mira/cmd/common"
@@ -56,9 +57,12 @@ func StartServer(port string) {
 	}
 
 	app := fiber.New(fiber.Config{
-		AppName:     "MIRA API Server",
-		JSONEncoder: gojson.Marshal,
-		JSONDecoder: gojson.Unmarshal,
+		AppName:      "MIRA API Server",
+		JSONEncoder:  gojson.Marshal,
+		JSONDecoder:  gojson.Unmarshal,
+		ReadTimeout:  5 * time.Minute, // 5 minute read timeout
+		WriteTimeout: 5 * time.Minute, // 5 minute write timeout
+		IdleTimeout:  5 * time.Minute, // 5 minute idle timeout
 	})
 
 	// Enable CORS with proper configuration for WebSocket support

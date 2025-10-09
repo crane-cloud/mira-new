@@ -359,6 +359,8 @@ func (h *LogHandler) StreamLogs(c *websocket.Conn) {
 			return
 		}
 
+		// Set write deadline for 5-minute timeout
+		c.SetWriteDeadline(time.Now().Add(5 * time.Minute))
 		err = c.WriteMessage(websocket.TextMessage, data)
 		if err != nil {
 			log.Printf("Failed to write WebSocket message: %v", err)
@@ -382,6 +384,8 @@ func (h *LogHandler) StreamLogs(c *websocket.Conn) {
 			return
 		}
 
+		// Set write deadline for 5-minute timeout
+		c.SetWriteDeadline(time.Now().Add(5 * time.Minute))
 		err = c.WriteMessage(websocket.TextMessage, data)
 		if err != nil {
 			log.Printf("Failed to write WebSocket completion message: %v", err)
@@ -405,20 +409,28 @@ func (h *LogHandler) StreamLogs(c *websocket.Conn) {
 
 	// Send initial connection confirmation
 	confirmMsg := fmt.Sprintf(`{"message":"Connected to log stream for build %s"}`, buildID)
+	c.SetWriteDeadline(time.Now().Add(5 * time.Minute))
 	c.WriteMessage(websocket.TextMessage, []byte(confirmMsg))
 
-	// Keep connection alive and handle client messages
+	// Keep connection alive and handle client messages with 5-minute timeout
+	timeout := 5 * time.Minute
 	for {
+		// Set read deadline for 5-minute timeout
+		c.SetReadDeadline(time.Now().Add(timeout))
+
 		messageType, message, err := c.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket error for build %s: %v", buildID, err)
+			} else {
+				log.Printf("WebSocket connection ended for build %s (likely timeout or normal close): %v", buildID, err)
 			}
 			break
 		}
 
 		// Handle ping/pong or other control messages
 		if messageType == websocket.PingMessage {
+			c.SetWriteDeadline(time.Now().Add(timeout))
 			c.WriteMessage(websocket.PongMessage, nil)
 		} else if messageType == websocket.TextMessage {
 			// Handle any client commands if needed
@@ -431,7 +443,11 @@ func (h *LogHandler) StreamLogs(c *websocket.Conn) {
 func (h *LogHandler) WebSocketUpgrade(c *fiber.Ctx) error {
 	// Check if it's a WebSocket upgrade request
 	if websocket.IsWebSocketUpgrade(c) {
-		return websocket.New(h.StreamLogs)(c)
+		return websocket.New(h.StreamLogs, websocket.Config{
+			HandshakeTimeout: 10 * time.Second, // 10 second handshake timeout
+			ReadBufferSize:   4096,             // 4KB read buffer
+			WriteBufferSize:  4096,             // 4KB write buffer
+		})(c)
 	}
 	return fiber.ErrUpgradeRequired
 }
