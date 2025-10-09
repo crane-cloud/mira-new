@@ -16,7 +16,7 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 # Install Air
-RUN go install github.com/air-verse/air@latest
+RUN go install github.com/air-verse/air@v1.52.3
 
 # Copy the source code
 COPY . .
