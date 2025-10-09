@@ -36,14 +36,14 @@ func NewImageHandler(natsClient *common.NATSClient) *ImageHandler {
 
 func getWebSocketURL(host, buildID string) string {
 	protocol := "ws"
-	if config.SECURE_SOCKET_URL {
+	if config.SECURE_SOCKET_URL == "true" {
 		protocol = "wss"
 	}
 	return fmt.Sprintf("%s://%s/api/logs/%s", protocol, host, buildID)
 }
 func getLogsHTMLURL(host, buildID string) string {
 	protocol := "http"
-	if config.SECURE_SOCKET_URL {
+	if config.SECURE_SOCKET_URL == "true" {
 		protocol = "https"
 	}
 	return fmt.Sprintf("%s://%s/git-logs.html?buildId=%s", protocol, host, buildID)
