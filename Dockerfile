@@ -16,7 +16,7 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 # Install Air
-RUN go install github.com/air-verse/air@latest
+RUN go install github.com/air-verse/air@v1.52.3
 
 # Copy the source code
 COPY . .
@@ -25,7 +25,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
-    -o /bin/mira ./main.go
+    -o /app/mira ./main.go
 
 # For development: keep Go available for live reload
 FROM golang:1.24-alpine AS development
@@ -55,6 +55,8 @@ WORKDIR /app
 # Copy Air binary from builder
 COPY --from=builder /go/bin/air /usr/local/bin/air
 
+# Copy the source code from builder stage
+COPY --from=builder /app .
 
 # Copy scripts from builder stage
 # COPY --from=builder /app/scripts/start-imagebuilder.sh ./scripts/start-imagebuilder.sh

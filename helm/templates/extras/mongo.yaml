@@ -1,0 +1,61 @@
+{{- if .Values.mongo.create -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  labels:
+    {{- include "mira.labels" . | nindent 4 }}
+spec:
+  serviceName: mongo
+  replicas: {{ .Values.mongo.replicas }}
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+        - name: mongo
+          image: "{{ .Values.mongo.image.repository }}:{{ .Values.mongo.image.tag }}"
+          imagePullPolicy: {{ .Values.mongo.image.pullPolicy }}
+          ports:
+            - containerPort: 27017
+              name: mongo
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: {{.Values.mongo.environment.MONGO_USER }}
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: {{.Values.mongo.environment.MONGO_USER_PASSWORD }}
+            - name: MONGO_INITDB_DATABASE
+              value: {{.Values.mongo.environment.MONGO_INITDB_DATABASE }}
+            - name: MONGODB_DATA_DIR
+              value: /data/db
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: {{ .Values.mongo.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  labels:
+    {{- include "mira.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app: mongo
+  ports:
+    - port: {{ .Values.mongo.port }}
+      name: mongo
+      targetPort: mongo
+{{- end }}

@@ -1,0 +1,6 @@
+tmp/
+logs/
+uploads/
+builds/
+mira
+*.log

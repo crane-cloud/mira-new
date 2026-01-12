@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"mira/cmd/api/services"
 	common "mira/cmd/common"
@@ -14,6 +15,7 @@ import (
 	gojson "github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/websocket/v2"
 	"github.com/nats-io/nats.go"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
@@ -55,13 +57,33 @@ func StartServer(port string) {
 	}
 
 	app := fiber.New(fiber.Config{
-		AppName:     "MIRA API Server",
-		JSONEncoder: gojson.Marshal,
-		JSONDecoder: gojson.Unmarshal,
+		AppName:      "MIRA API Server",
+		JSONEncoder:  gojson.Marshal,
+		JSONDecoder:  gojson.Unmarshal,
+		ReadTimeout:  5 * time.Minute, // 5 minute read timeout
+		WriteTimeout: 5 * time.Minute, // 5 minute write timeout
+		IdleTimeout:  5 * time.Minute, // 5 minute idle timeout
 	})
 
-	// Enable CORS
-	app.Use(cors.New())
+	// Enable CORS with proper configuration for WebSocket support
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Requested-With,Upgrade,Connection",
+		AllowCredentials: false,
+		ExposeHeaders:    "Content-Length",
+		MaxAge:           12 * 3600, // 12 hours
+	}))
+
+	// Add WebSocket middleware
+	app.Use("/api/logs", func(c *fiber.Ctx) error {
+		// Check if it's a WebSocket upgrade request
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
 
 	// Health check endpoint
 	// @Summary Health check
@@ -89,7 +111,7 @@ func StartServer(port string) {
 	app.Static("/", "./public")
 
 	// Swagger documentation
-	app.Get("/api/docs/*", fiberSwagger.WrapHandler)
+	app.Get("/apidocs/*", fiberSwagger.WrapHandler)
 
 	// Setup all API routes
 	SetupRoutes(app, natsClient, mongoConfig)

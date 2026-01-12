@@ -202,9 +202,12 @@ func checkRepositoryExists(ctx context.Context, owner, repo string) (bool, error
 	resp, err := httpClient.Do(req)
 
 	if err != nil {
+		log.Printf("HTTP request failed: %v", err)
 		return false, fmt.Errorf("failed to check repository: %v", err)
 	}
 	defer resp.Body.Close()
+
+	log.Printf("GitHub API response status: %d for URL: %s", resp.StatusCode, apiURL)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -213,7 +216,12 @@ func checkRepositoryExists(ctx context.Context, owner, repo string) (bool, error
 		return false, nil
 	case http.StatusForbidden:
 		return false, fmt.Errorf("access forbidden - repository may be private")
+	case http.StatusUnauthorized:
+		// Rate limited or auth issue - assume repository exists for public repos
+		log.Printf("GitHub API rate limited (401) - assuming repository exists for %s", apiURL)
+		return true, nil
 	default:
+		log.Printf("Unexpected GitHub API status: %d", resp.StatusCode)
 		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 }

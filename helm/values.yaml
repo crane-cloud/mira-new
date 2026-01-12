@@ -1,0 +1,180 @@
+# Default values for cranecloud-backend.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: cranecloud/mira
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: "mira"
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: NodePort
+  port: 80
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+nginxConf: |
+  server {
+    listen 80;
+    server_name localhost;
+
+    # Handle WebSocket connections for logs
+    location /api/logs/ {
+      proxy_pass http://localhost:3000;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Port $server_port;
+      
+      # WebSocket specific settings
+      proxy_read_timeout 86400;
+      proxy_send_timeout 86400;
+      proxy_connect_timeout 86400;
+      proxy_buffering off;
+    }
+
+    # Handle Swagger UI static assets
+    location /apidocs/ {
+      proxy_pass http://localhost:3000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Port $server_port;
+    }
+
+    # Handle all other requests
+    location / {
+      proxy_pass http://localhost:3000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Port $server_port;
+      
+      # Handle WebSocket upgrades for other endpoints
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+    }
+  }
+
+port: 3000
+
+command: ["/app/mira", "api-server", "--port", "3000"]
+
+environment:
+  CGO_ENABLED: "0"
+  NATS_URL: "nats://mira-nats:4222"
+  DOCKERHUB_USERNAME: ""
+  DOCKERHUB_TOKEN: ""
+  CRANECLOUD_API_HOST: ""
+  MONGODB_URI: "mongodb://mira:password@mongo:27017/mira?authSource=admin"
+  MONGO_LOG_TTL_HOURS: "1440" # 60 days
+  SECURE_SOCKET_URL: ""
+
+imagebuilder:
+  create: true
+  replicaCount: 1
+  command:
+    - "sh"
+    - "-c"
+    - 'cd /app && docker version && if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin && echo "Docker login successful" && docker system info && echo "Docker config:" && cat ~/.docker/config.json; else echo "Docker credentials not provided, skipping login"; fi && /app/mira image-builder'
+  port: 5002
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    privileged: true
+  dockerCredentials:
+    username: "your-dockerhub-username"
+    token: "your-dockerhub-token"
+
+mongo:
+  create: true
+  image:
+    repository: mongo
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 27017
+  storage: 1Gi
+  environment:
+    MONGO_INITDB_ROOT_USERNAME: mira
+    MONGO_INITDB_ROOT_PASSWORD: password
+    MONGO_INITDB_DATABASE: mira
+
+nats:
+  create: true
+  image:
+    repository: nats
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Additional NATS configuration
+  jetstream:
+    enabled: true
+    storage: "/data/js"
