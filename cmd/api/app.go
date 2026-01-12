@@ -58,7 +58,6 @@ func StartServer(port string) {
 		AppName:     "MIRA API Server",
 		JSONEncoder: gojson.Marshal,
 		JSONDecoder: gojson.Unmarshal,
-		ProxyHeader: fiber.HeaderXForwardedFor,
 	})
 
 	// Enable CORS
