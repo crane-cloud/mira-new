@@ -33,16 +33,11 @@ func NewImageHandler(natsClient *common.NATSClient) *ImageHandler {
 	}
 }
 
-func getWebSocketURL(c *fiber.Ctx, buildID string) string {
-	scheme := "ws"
-	if c.Protocol() == "https" {
-		scheme = "wss"
-	}
-	return fmt.Sprintf("%s://%s/api/logs/%s", scheme, c.Hostname(), buildID)
+func getWebSocketURL(host, buildID string) string {
+	return fmt.Sprintf("ws://%s/api/logs/%s", host, buildID)
 }
-
-func getLogsHTMLURL(c *fiber.Ctx, buildID string) string {
-	return fmt.Sprintf("%s://%s/git-logs.html?buildId=%s", c.Protocol(), c.Hostname(), buildID)
+func getLogsHTMLURL(host, buildID string) string {
+	return fmt.Sprintf("http://%s/git-logs.html?buildId=%s", host, buildID)
 }
 
 // GenerateImage containerizes source code into Docker images
@@ -56,7 +51,6 @@ func getLogsHTMLURL(c *fiber.Ctx, buildID string) string {
 // @Failure 400 {object} models.ErrorResponse "Invalid request"
 // @Failure 500 {object} models.ErrorResponse "Internal server error"
 // @Router /images/containerize [post]
-
 func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 	// Generate unique build ID
 	buildID := uuid.New().String()
@@ -146,8 +140,8 @@ func (h *ImageHandler) GenerateImage(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"name":            buildReq.Name,
 			"build_id":        buildReq.ID,
-			"logs_socket_url": getWebSocketURL(c, buildReq.ID),
-			"logs_html_url":   getLogsHTMLURL(c, buildReq.ID),
+			"logs_socket_url": getWebSocketURL(host, buildReq.ID),
+			"logs_html_url":   getLogsHTMLURL(host, buildReq.ID),
 		},
 	})
 }
