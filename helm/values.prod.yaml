@@ -1,0 +1,63 @@
+# Default values for cranecloud-backend.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: cranecloud/mira
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: "mira"
+fullnameOverride: ""
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+port: 3000
+
+command: ["/app/mira", "api-server", "--port", "3000"]
+
+environment:
+  CGO_ENABLED: "0"
+  NATS_URL: "nats://mira-nats:4222"
+  CRANECLOUD_API_HOST: "https://api.cranecloud.io"
+  MONGO_LOG_TTL_HOURS: "1440" # 60 days
+  DOCKERHUB_USERNAME: ""
+  DOCKERHUB_TOKEN: ""
+  MONGODB_URI: ""
+  GITHUB_REDIRECT_URI: ""
+  GITHUB_ACCESS_TOKEN: ""
+  SECURE_SOCKET_URL: ""
+
+imagebuilder:
+  create: true
+  replicaCount: 1
+  command:
+    - "sh"
+    - "-c"
+    - 'cd /app && docker version && if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin && echo "Docker login successful" && docker system info && echo "Docker config:" && cat ~/.docker/config.json; else echo "Docker credentials not provided, skipping login"; fi && /app/mira image-builder'
+  port: 5002
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    privileged: true
+
+mongo:
+  create: false
+
+nats:
+  create: true
+  # Additional NATS configuration
+  jetstream:
+    enabled: true
+    storage: "/data/js"
