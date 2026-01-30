@@ -1,0 +1,121 @@
+---
+name: production
+
+on:
+  push:
+    branches:
+      - main
+      - ch-prod-deployment
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    outputs:
+      image: ${{ steps.export.outputs.image }}
+      tag: ${{ steps.export.outputs.tag }}
+
+    runs-on: ubuntu-latest
+    env:
+      image: cranecloud/mira
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install (Buildx)
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - id: meta
+        name: Tag
+        uses: docker/metadata-action@v3
+        with:
+          flavor: |
+            latest=true
+          images: ${{ env.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build
+        uses: docker/build-push-action@v5
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - id: export
+        name: Export
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const metadata = JSON.parse(`${{ steps.meta.outputs.json }}`)
+            const fullUrl = metadata.tags.find((t) => t.includes(':sha-'))
+            if (fullUrl == null) {
+              core.error('Unable to find sha tag of image')
+            } else {
+              const tag = fullUrl.split(':')[1]
+              core.setOutput('image', fullUrl)
+              core.setOutput('tag', tag)
+            }
+  Staging:
+    name: Deploy (Staging)
+
+    needs:
+      - build
+
+    runs-on: ubuntu-latest
+
+    env:
+      namespace: cranecloud-prod
+      image: cranecloud/mira
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Login (GCP)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.CREDENTIALS_JSON }}
+
+      - name: Install (Gcloud)
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: crane-cloud-274413
+          install_components: "gke-gcloud-auth-plugin"
+
+      - name: Login (Kubernetes Cluster)
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: staging-cluster
+          location: us-central1-a
+          project_id: crane-cloud-274413
+
+      - name: Helm Release
+        run: |
+          helm upgrade --install \
+          mira ./helm \
+          --values helm/values.prod.yaml \
+          --namespace $namespace \
+          --set image.tag="${{ needs.build.outputs.tag }}" \
+          --set environment.MONGODB_URI="${{ secrets.PROD_MONGODB_URI }}" \
+          --set environment.GITHUB_ACCESS_TOKEN="${{ secrets.PROD_GITHUB_ACCESS_TOKEN }}" \
+          --set environment.GITHUB_REDIRECT_URI="${{ secrets.PROD_GITHUB_REDIRECT_URI }}" \
+          --set environment.DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}" \
+          --set environment.DOCKERHUB_TOKEN="${{ secrets.DOCKERHUB_TOKEN }}" \
+          --set environment.SECURE_SOCKET_URL="${{ secrets.SECURE_SOCKET_URL }}" \
+          --timeout=300s
+
+      - name: Monitor Rollout
+        run: |
+          kubectl rollout status deployment/mira --timeout=300s --namespace $namespace
